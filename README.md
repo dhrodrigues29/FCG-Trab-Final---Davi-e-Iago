@@ -1,2 +1,2 @@
-# FCG-Trab-Final---Davi-e-Iago
-Directory for the final project of the Fundamentals of Computer Graphics class - UFRGS
+# FCG-Trab-Final-Davi-e-Iago
+Directory used for the final project of the Computer Graphics Fundamentals class - UFRGS
