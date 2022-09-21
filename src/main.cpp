@@ -5,7 +5,7 @@
 //    INF01047 Fundamentos de Computação Gráfica
 //               Prof. Eduardo Gastal
 //
-//                   LABORATÓRIO 2
+//                   LABORATÓRIO 4
 //
 
 // Arquivos "headers" padrões de C podem ser incluídos em um
@@ -44,29 +44,30 @@
 // Headers da biblioteca para carregar modelos obj
 #include <tiny_obj_loader.h>
 
+// Headers da biblioteca para carregar texturas obj
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 // Headers locais, definidos na pasta "include/"
 #include "utils.h"
 #include "matrices.h"
-#include "sceneObj.cpp"
+#include "sceneObjs.cpp"
 
-// Inclusões EXTRAS
+// Nossas inclusões
 #include <array>
 #include <random>
 
-#define BUNNY    0
-#define PLANE    1
+#define BUNNY    1
+#define PLANE    2
 
+#define PI 3.14159265359
 #define NUMBER_OF_BUNNYS 10
 
-//Extra Global Variables
-
-bool wKeyPressed = false;
-bool aKeyPressed = false;
-bool sKeyPressed = false;
-bool dKeyPressed = false;
+// GLobais
+unsigned int wKeyPressed = 0;
+unsigned int sKeyPressed = 0;
+unsigned int aKeyPressed = 0;
+unsigned int dKeyPressed = 0;
 
 // Estrutura que representa um modelo geométrico carregado a partir de um
 // arquivo ".obj". Veja https://en.wikipedia.org/wiki/Wavefront_.obj_file .
@@ -90,7 +91,7 @@ struct ObjModel
 
         if (!ret)
             throw std::runtime_error("Erro ao carregar modelo.");
-        
+
         printf("OK.\n");
     }
 };
@@ -126,9 +127,6 @@ void TextRendering_PrintMatrixVectorProductDivW(GLFWwindow* window, glm::mat4 M,
 
 // Funções abaixo renderizam como texto na janela OpenGL algumas matrizes e
 // outras informações do programa. Definidas após main().
-void TextRendering_ShowModelViewProjection(GLFWwindow* window, glm::mat4 projection, glm::mat4 view, glm::mat4 model, glm::vec4 p_model);
-void TextRendering_ShowEulerAngles(GLFWwindow* window);
-void TextRendering_ShowProjection(GLFWwindow* window);
 void TextRendering_ShowFramesPerSecond(GLFWwindow* window);
 
 // Funções callback para comunicação com o sistema operacional e interação do
@@ -139,11 +137,10 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
 void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 void CursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 
-// Funcoes novas
+// My Functions
 void DrawEnviroment();
-glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight);
+glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<SceneObj>);
 std::vector<SceneObj> spawnBunnys();
-bool SceneObjsColliding(SceneObj A1, SceneObj A2);
 
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
@@ -216,27 +213,20 @@ GLint object_id_uniform;
 GLint bbox_min_uniform;
 GLint bbox_max_uniform;
 
-// Número de texturas carregadas pela função LoadTextureImage()
-GLuint g_NumLoadedTextures = 0;
-
 glm::vec4 firstCameraPos  = glm::vec4(1.0f, 1.0f, -4.0f, 1.0f);
 glm::vec4 camera_lookat_l = glm::vec4(1.0f, 1.0f, -4.0f, 1.0f);
 glm::vec4 cameraPos  = firstCameraPos;
 
+// Número de texturas carregadas pela função LoadTextureImage()
+GLuint g_NumLoadedTextures = 0;
+
 // Outros estados
 glm::vec4 cameraTarget;
-float bunnyTimeAcc = 0;
-float bezierTimeAcc = 0;
-float bezierTimeDirection = 1;
-float BunnyRotationAcc = 0;
 
 float timePrevious;
 float startTime;
 float timeNow;
 float timeVariation;
-bool gameRunning = false;
-bool isPaused = true;
-float bestScore = 1000;
 
 std::vector<SceneObj> arrayOfBunnys = spawnBunnys();
 SceneObj myBunny = SceneObj(0, vec3(0.0f, 0.0f, 0.0f), true);
@@ -270,10 +260,10 @@ int main(int argc, char* argv[])
     // funções modernas de OpenGL.
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    // Criamos uma janela do sistema operacional, com 800 colunas e 800 linhas
+    // Criamos uma janela do sistema operacional, com 800 colunas e 600 linhas
     // de pixels, e com título "INF01047 ...".
     GLFWwindow* window;
-    window = glfwCreateWindow(800, 800, "INF01047 - 00288844 - Davi Haas Rodrigues", NULL, NULL);
+    window = glfwCreateWindow(800, 600, "INF01047 - 00288844 - Davi Haas Rodrigues", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -288,12 +278,9 @@ int main(int argc, char* argv[])
     glfwSetMouseButtonCallback(window, MouseButtonCallback);
     // ... ou movimentar o cursor do mouse em cima da janela ...
     glfwSetCursorPosCallback(window, CursorPosCallback);
+    //seta o input como mouse
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    // Definimos a função de callback que será chamada sempre que a janela for
-    // redimensionada, por consequência alterando o tamanho do "framebuffer"
-    // (região de memória onde são armazenados os pixels da imagem).
-    glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
-    glfwSetWindowSize(window, 800, 800); // Forçamos a chamada do callback acima, para definir g_ScreenRatio.
 
     // Indicamos que as chamadas OpenGL deverão renderizar nesta janela
     glfwMakeContextCurrent(window);
@@ -301,6 +288,12 @@ int main(int argc, char* argv[])
     // Carregamento de todas funções definidas por OpenGL 3.3, utilizando a
     // biblioteca GLAD.
     gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
+
+    // Definimos a função de callback que será chamada sempre que a janela for
+    // redimensionada, por consequência alterando o tamanho do "framebuffer"
+    // (região de memória onde são armazenados os pixels da imagem).
+    glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
+    FramebufferSizeCallback(window, 800, 600); // Forçamos a chamada do callback acima, para definir g_ScreenRatio.
 
     // Imprimimos no terminal informações sobre a GPU do sistema
     const GLubyte *vendor      = glGetString(GL_VENDOR);
@@ -315,10 +308,10 @@ int main(int argc, char* argv[])
     //
     LoadShadersFromFiles();
 
+    // Carregamos duas imagens para serem utilizadas como textura
     LoadTextureImage("../../data/dirt.jpg");      // TextureImage0
     LoadTextureImage("../../data/fur.jpg");      // TextureImage1
 
-    // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel bunnymodel("../../data/bunny.obj");
     ComputeNormals(&bunnymodel);
     BuildTrianglesAndAddToVirtualScene(&bunnymodel);
@@ -346,11 +339,14 @@ int main(int argc, char* argv[])
 
     startTime = (float)glfwGetTime();
     timePrevious = startTime;
-
-
     // Ficamos em loop, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
     {
+        // Tempo de jogo
+        timeNow = (float)glfwGetTime();
+        timeVariation = timeNow - timePrevious;
+        timePrevious = timeNow;
+
         // Aqui executamos as operações de renderização
 
         // Definimos a cor do "fundo" do framebuffer como branco.  Tal cor é
@@ -379,20 +375,17 @@ int main(int argc, char* argv[])
         float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
 
         glm::mat4 view;
-    
+        
         cameraTarget =    glm::vec4(x,y,z,0.0f);
-
         glm::vec4 cameraOnEyesHeight =    glm::vec4(x,0.0f,z,0.0f);
-
-        glm::vec4 up = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-        glm::vec4 cameraRight = crossproduct(up, cameraTarget);
-        glm::vec4 cameraUp = crossproduct(cameraTarget, cameraRight);
-
-        cameraPos = GetNewCameraPos(cameraPos, cameraOnEyesHeight, cameraRight);
-
+        glm::vec4 genericUp =       glm::vec4(0.0f, 1.0f ,0.0f ,0.0f);
+        glm::vec4 cameraRight =     crossproduct(genericUp,cameraTarget);
+        glm::vec4 cameraUp =        crossproduct(cameraTarget,cameraRight);
+        cameraPos = GetNewCameraPos(cameraPos, cameraOnEyesHeight, cameraRight, arrayOfBunnys);
         // Computamos a matriz "View" utilizando os parâmetros da câmera para
         // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
         view = Matrix_Camera_View(cameraPos, cameraTarget, cameraUp);
+        
 
         // Agora computamos a matriz de Projeção.
         glm::mat4 projection;
@@ -405,17 +398,12 @@ int main(int argc, char* argv[])
         if (g_UsePerspectiveProjection)
         {
             // Projeção Perspectiva.
-            // Para definição do field of view (FOV), veja slides 205-215 do documento Aula_09_Projecoes.pdf.
-            float field_of_view = 3.141592 / 3.0f;
+            float field_of_view = PI / 3.0f;
             projection = Matrix_Perspective(field_of_view, g_ScreenRatio, nearplane, farplane);
         }
         else
         {
             // Projeção Ortográfica.
-            // Para definição dos valores l, r, b, t ("left", "right", "bottom", "top"),
-            // PARA PROJEÇÃO ORTOGRÁFICA veja slides 219-224 do documento Aula_09_Projecoes.pdf.
-            // Para simular um "zoom" ortográfico, computamos o valor de "t"
-            // utilizando a variável g_CameraDistance.
             float t = 1.5f*g_CameraDistance/2.5f;
             float b = -t;
             float r = t*g_ScreenRatio;
@@ -432,22 +420,22 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
         glUniformMatrix4fv(projection_uniform , 1 , GL_FALSE , glm::value_ptr(projection));
 
-       // Desenhamos os modelos do coelho
+        // Desenhamos os modelos dos coelhos
         int remainingBunnys = NUMBER_OF_BUNNYS;
         for(int i=0; i < NUMBER_OF_BUNNYS; i++){
-
-            //desenha o coleoh no mapa se está viva
+            //desenha a coelho no mapa
             model = Matrix_Translate(arrayOfBunnys[i].position.x, arrayOfBunnys[i].position.y, arrayOfBunnys[i].position.z)
-                * Matrix_Scale(0.5, 0.5, 0.5)
+                * Matrix_Scale(0.7, 0.7, 0.7)
                 * Matrix_Rotate_Y(0.0)
                 * Matrix_Rotate_Z(0.0);
             glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(object_id_uniform, BUNNY);
             DrawVirtualObject("bunny");
 
-            remainingBunnys--;
+            remainingBunnys --;
         }
 
+        
         DrawEnviroment();
 
         // Imprimimos na tela informação sobre o número de quadros renderizados
@@ -477,15 +465,14 @@ int main(int argc, char* argv[])
 }
 
 // Coloca coelhos aleatórias pelo mapa.
-// os coelhos são colocadas sempre dentro dos limites do mapa.
-// Além disso são feitos teste de colisão, para não colocar dois coelhos no mesmo lugar
+// As coelhos são colocadas sempre dentro dos limites do mapa.
+// Além disso são feitos teste de colisão, para não colocar duas coelhos no mesmo lugar
 std::vector<SceneObj> spawnBunnys(){
     float posX;
     float posZ;
     vec3 posBunny = vec3(0.0f, 0.0f, 0.0f);
     SceneObj newBunny(0, posBunny);
     std::vector<SceneObj> arrayOfBunnys(NUMBER_OF_BUNNYS);
-    int j;
     int plane_size_x = PLANE_SIZE_X - 2;
     int plane_size_z = PLANE_SIZE_Z - 2;
 
@@ -497,42 +484,20 @@ std::vector<SceneObj> spawnBunnys(){
 
     for(int i= 0; i<NUMBER_OF_BUNNYS; i++){
 
-        //rand position to put the new Bunny
+        //rand position to put the new cow
         posX = genX(engine);
         posZ = genZ(engine);
-        posBunny = vec3(posX, -0.5f, posZ);
+        posBunny = vec3(posX, -0.3f, posZ);
         newBunny.id = i;
         newBunny.position = posBunny;
-        newBunny.updateHitBox();
-
-        //test if already have a Bunny there
-        j = 0;
-        while(j<i){
-            while(SceneObjsColliding(newBunny, arrayOfBunnys[j])){
-                newBunny.position.x = genX(engine);
-                newBunny.position.z = genZ(engine);
-                newBunny.updateHitBox();
-                j = 0;
-            }
-            j++;
-        }
         arrayOfBunnys[i] = newBunny;
     }
 
     return arrayOfBunnys;
 }
 
-//Testa se dois animais colidiram, fazendo:
-//  - Teste para ver se os pontos da HitBox do primeiro estão dentro da hitBox do segundo.
-//  - Teste para ver se os pontos da HitBox do segundo estão dentro da hitBox do primeiro.
-bool SceneObjsColliding(SceneObj A1, SceneObj A2){
-    if(A1.cubeInsideCube(A2.hitBoxMin, A2.hitBoxMax) || A2.cubeInsideCube(A1.hitBoxMin, A1.hitBoxMax))
-       return true;
-    return false;
-}
-
 //Pega a próxima posição do jogador, fazendo testes de colisão com a parede e com os animais distribuídos pelo mapa.
-glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight)
+glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<SceneObj>)
 {
     glm::vec4 newCameraPos = cameraPos;
     glm::vec4 auxCameraPos = cameraPos;
@@ -607,18 +572,9 @@ glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm
         newCameraPos.z = newZ;
     }
 
-    glm::vec3 cameraPosPoint = vec3(newCameraPos.x, newCameraPos.y, newCameraPos.z);
-
-    for(int i=0; i<NUMBER_OF_BUNNYS; i++){
-        if(arrayOfBunnys[i].pointInsideCube(cameraPosPoint)){
-            newCameraPos.x = cameraPos.x;
-            newCameraPos.y = cameraPos.y;
-            newCameraPos.z = cameraPos.z;
-        }
-    }
-
     return newCameraPos;
 }
+
 
 // Função que carrega uma imagem para ser utilizada como textura
 void LoadTextureImage(const char* filename)
@@ -647,8 +603,8 @@ void LoadTextureImage(const char* filename)
     glGenSamplers(1, &sampler_id);
 
     // Veja slides 95-96 do documento Aula_20_Mapeamento_de_Texturas.pdf
-    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     // Parâmetros de amostragem da textura.
     glSamplerParameteri(sampler_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -671,6 +627,7 @@ void LoadTextureImage(const char* filename)
 
     g_NumLoadedTextures += 1;
 }
+
 
 // Função que desenha um objeto armazenado em g_VirtualScene. Veja definição
 // dos objetos na função BuildTrianglesAndAddToVirtualScene().
@@ -706,7 +663,7 @@ void DrawVirtualObject(const char* object_name)
 }
 
 // Função que carrega os shaders de vértices e de fragmentos que serão
-// utilizados para renderização. Veja slides 180-200 do documento Aula_03_Rendering_Pipeline_Grafico.pdf.
+// utilizados para renderização. Veja slides 176-196 do documento Aula_03_Rendering_Pipeline_Grafico.pdf.
 //
 void LoadShadersFromFiles()
 {
@@ -750,9 +707,8 @@ void LoadShadersFromFiles()
 
     // Variáveis em "shader_fragment.glsl" para acesso das imagens de textura
     glUseProgram(program_id);
-    glUniform1i(glGetUniformLocation(program_id, "TextureImage0"), 0);
-    glUniform1i(glGetUniformLocation(program_id, "TextureImage1"), 1);
-    glUniform1i(glGetUniformLocation(program_id, "TextureImage2"), 2);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage1"), BUNNY);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage2"), PLANE);
     glUseProgram(0);
 }
 
@@ -815,7 +771,9 @@ void ComputeNormals(ObjModel* model)
             const glm::vec4  b = vertices[1];
             const glm::vec4  c = vertices[2];
 
-            const glm::vec4  n = crossproduct(b-a,c-a);
+            // o cálculo da normal de um triângulo cujos vértices
+            // estão nos pontos "a", "b", e "c", definidos no sentido anti-horário.
+            const glm::vec4  n =  crossproduct(b-a, c-a);
 
             for (size_t vertex = 0; vertex < 3; ++vertex)
             {
@@ -1124,7 +1082,7 @@ GLuint CreateGpuProgram(GLuint vertex_shader_id, GLuint fragment_shader_id)
         fprintf(stderr, "%s", output.c_str());
     }
 
-    // Os "Shader Objects" podem ser marcados para deleção após serem linkados 
+    // Os "Shader Objects" podem ser marcados para deleção após serem linkados
     glDeleteShader(vertex_shader_id);
     glDeleteShader(fragment_shader_id);
 
@@ -1211,6 +1169,7 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
     }
 }
 
+
 // Função callback chamada sempre que o usuário movimentar o cursor do mouse em
 // cima da janela OpenGL.
 bool cursorPosChanged;
@@ -1227,42 +1186,42 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
         // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
         float dx = xpos - g_LastCursorPosX;
         float dy = ypos - g_LastCursorPosY;
-    
+
         // Atualizamos parâmetros da câmera com os deslocamentos
         g_CameraTheta -= 0.01f*dx;
-        g_CameraPhi   += 0.01f*dy;
-    
+        g_CameraPhi   -= 0.01f*dy;
+
         // Em coordenadas esféricas, o ângulo phi deve ficar entre -pi/2 e +pi/2.
         float phimax = 3.141592f/2;
         float phimin = -phimax;
-    
+
         if (g_CameraPhi > phimax)
             g_CameraPhi = phimax;
-    
+
         if (g_CameraPhi < phimin)
             g_CameraPhi = phimin;
-    
-        
+
     }
 
     // Atualizamos as variáveis globais para armazenar a posição atual do
-        // cursor como sendo a última posição conhecida do cursor.
-        g_LastCursorPosX = xpos;
-        g_LastCursorPosY = ypos;
-        cursorPosChanged = true;
+    // cursor como sendo a última posição conhecida do cursor.
+    g_LastCursorPosX = xpos;
+    g_LastCursorPosY = ypos;
+    cursorPosChanged = true;
+
 }
 
 // Definição da função que será chamada sempre que o usuário pressionar alguma
 // tecla do teclado. Veja http://www.glfw.org/docs/latest/input_guide.html#input_key
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
 {
-    // ================
+    // ==============
     // Não modifique este loop! Ele é utilizando para correção automatizada dos
     // laboratórios. Deve ser sempre o primeiro comando desta função KeyCallback().
     for (int i = 0; i < 10; ++i)
         if (key == GLFW_KEY_0 + i && action == GLFW_PRESS && mod == GLFW_MOD_SHIFT)
             std::exit(100 + i);
-    // ================
+    // ==============
 
     // Se o usuário pressionar a tecla ESC, fechamos a janela.
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
@@ -1281,53 +1240,60 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
         g_UsePerspectiveProjection = false;
     }
 
+    // Se o usuário apertar a tecla H, fazemos um "toggle" do texto informativo mostrado na tela.
+    if (key == GLFW_KEY_H && action == GLFW_PRESS)
+    {
+        g_ShowInfoText = !g_ShowInfoText;
+    }
+
+    // Se o usuário apertar a tecla R, recarregamos os shaders dos arquivos "shader_fragment.glsl" e "shader_vertex.glsl".
+    if (key == GLFW_KEY_R && action == GLFW_PRESS)
+    {
+        LoadShadersFromFiles();
+        fprintf(stdout,"Shaders recarregados!\n");
+        fflush(stdout);
+    }
+
     //Forward
     if (key == GLFW_KEY_W && action == GLFW_PRESS)
     {
-        wKeyPressed = true;
+        wKeyPressed = 1;
     }
     if (key == GLFW_KEY_W && action == GLFW_RELEASE)
     {
-        wKeyPressed = false;
+        wKeyPressed = 0;
     }
 
     //Backward
     if (key == GLFW_KEY_S && action == GLFW_PRESS)
     {
-        sKeyPressed = true;
+        sKeyPressed = 1;
     }
     if (key == GLFW_KEY_S && action == GLFW_RELEASE)
     {
-        sKeyPressed = false;
+        sKeyPressed = 0;
     }
 
     //Left
     if (key == GLFW_KEY_A && action == GLFW_PRESS)
     {
-        aKeyPressed = true;
+        aKeyPressed = 1;
     }
     if (key == GLFW_KEY_A && action == GLFW_RELEASE)
     {
-        aKeyPressed = false;
+        aKeyPressed = 0;
     }
 
     //Right
     if (key == GLFW_KEY_D && action == GLFW_PRESS)
     {
-        dKeyPressed = true;
+        dKeyPressed = 1;
     }
     if (key == GLFW_KEY_D && action == GLFW_RELEASE)
     {
-        dKeyPressed = false;
+        dKeyPressed = 0;
     }
 
-    //Play/Pause
-    if (key == GLFW_KEY_P && action == GLFW_PRESS)
-    {
-        if(!gameRunning) startTime=(float)glfwGetTime();
-        gameRunning = true;
-        isPaused = !isPaused;
-    }
 }
 
 // Definimos o callback para impressão de erros da GLFW no terminal
@@ -1336,10 +1302,6 @@ void ErrorCallback(int error, const char* description)
     fprintf(stderr, "ERROR: GLFW: %s\n", description);
 }
 
-// Esta função recebe um vértice com coordenadas de modelo p_model e passa o
-// mesmo por todos os sistemas de coordenadas armazenados nas matrizes model,
-// view, e projection; e escreve na tela as matrizes e pontos resultantes
-// dessas transformações.
 
 // Escrevemos na tela o número de quadros renderizados por segundo (frames per
 // second).
@@ -1366,7 +1328,7 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow* window)
     if ( ellapsed_seconds > 1.0f )
     {
         numchars = snprintf(buffer, 20, "%.2f fps", ellapsed_frames / ellapsed_seconds);
-    
+
         old_seconds = seconds;
         ellapsed_frames = 0;
     }
@@ -1377,7 +1339,6 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow* window)
     TextRendering_PrintString(window, buffer, 1.0f-(numchars + 1)*charwidth, 1.0f-lineheight, 1.0f);
 }
 
-// Desenha o cenario. chao e cercas
 void DrawEnviroment()
 {
     glm::mat4 model = Matrix_Identity();
@@ -1560,3 +1521,7 @@ void PrintObjModelInfo(ObjModel* model)
 
 // set makeprg=cd\ ..\ &&\ make\ run\ >/dev/null
 // vim: set spell spelllang=pt_br :
+
+static int cosAngle(glm::vec4 v1, glm::vec4 v2){
+    return dot(normalize(v1),normalize(v2));
+}

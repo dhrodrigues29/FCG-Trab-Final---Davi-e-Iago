@@ -2,8 +2,8 @@
 #include <glm/vec4.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#ifndef _sceneObj_hpp
-#define _sceneObj_hpp
+#ifndef _sceneObjs_hpp
+#define _sceneObjs_hpp
 
 using namespace glm;
 
@@ -16,11 +16,8 @@ public:
     vec3 position, hitBoxMin, hitBoxMax;
     SceneObj(int id, vec3 position, bool isRabbit);
     SceneObj();
-    void updateHitBox();
-    bool wallColision();
     void setPosition(vec3 position);
-    bool pointInsideCube(vec3 point);
-    bool cubeInsideCube(vec3 otherHitBoxMin, vec3 otherHitBoxMax);
+
 };
 
-#endif // _sceneObj_hpp
+#endif // _sceneObjs_hpp
