@@ -25,6 +25,7 @@ uniform mat4 projection;
 
 #define BUNNY    1
 #define PLANE    2
+#define COW      3
 
 
 uniform int object_id;
@@ -37,6 +38,7 @@ uniform vec4 bbox_max;
 
 uniform sampler2D TextureImage0; //BUNNY
 uniform sampler2D TextureImage1; //PLANE
+uniform sampler2D TextureImage2; //COW
 
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
@@ -121,10 +123,29 @@ void main()
         Ka = vec3(0.2,0.2,0.2); 
         q = 10.0;
     }
+    if ( object_id == COW )
+    {
+        // Propriedades espectrais da vaca
+        Kd = vec3(0.8, 0.8, 0.8);
+        Ka = vec3(0.2,0.2,0.2);
+        q = 8.0;
+
+        // Projeção planar
+        float minx = bbox_min.x;
+        float maxx = bbox_max.x;
+        float miny = bbox_min.y;
+        float maxy = bbox_max.y;
+        float minz = bbox_min.z;
+        float maxz = bbox_max.z;
+        P = position_model;
+        U = (P.x-minx)/(maxx-minx);
+        V = (P.y-miny)/(maxy-miny);
+    }
 
    // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
     vec3 DirtTexture = texture(TextureImage0, vec2(U,V)).rgb;
     vec3 FurTexture = texture(TextureImage1, vec2(U,V)).rgb;
+    vec3 CowTexture = texture(TextureImage2, vec2(U,V)).rgb;
     
     // Espectro da fonte de iluminação
     vec3 I = vec3(1.0,1.0,1.0); // o espectro da fonte de luz
@@ -142,6 +163,7 @@ void main()
 
     if      ( object_id == BUNNY )    color = FurTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
     else if ( object_id == PLANE )    color = DirtTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
+    else if ( object_id == COW )      color = CowTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
 
     color = pow(color, vec3(1.0,1.0,1.0)/2.2);
 

@@ -1,12 +1,12 @@
-//     Universidade Federal do Rio Grande do Sul
-//             Instituto de Informática
-//       Departamento de Informática Aplicada
+//=================================================
 //
-//    INF01047 Fundamentos de Computação Gráfica
-//               Prof. Eduardo Gastal
+//              TRABALHO FINAL FCG
+//           DAVI HAAS RODRIGUES - 00288844
+//                      IAGO
 //
-//                   LABORATÓRIO 4
-//
+//=================================================
+
+
 
 // Arquivos "headers" padrões de C podem ser incluídos em um
 // programa C++, sendo necessário somente adicionar o caractere
@@ -59,6 +59,7 @@
 
 #define BUNNY    1
 #define PLANE    2
+#define COW      3
 
 #define PI 3.14159265359
 #define NUMBER_OF_BUNNYS 10
@@ -199,6 +200,9 @@ float g_TorsoPositionY = 0.0f;
 // Variável que controla o tipo de projeção utilizada: perspectiva ou ortográfica.
 bool g_UsePerspectiveProjection = true;
 
+// Variável que controla o tipo de camera utilizada: primeira ou terceira pessoa.
+bool g_UseFirstPersonView = true;
+
 // Variável que controla se o texto informativo será mostrado na tela.
 bool g_ShowInfoText = true;
 
@@ -214,6 +218,7 @@ GLint bbox_min_uniform;
 GLint bbox_max_uniform;
 
 glm::vec4 firstCameraPos  = glm::vec4(1.0f, 1.0f, -4.0f, 1.0f);
+glm::vec4 ThirdCameraPos  = glm::vec4(1.0f, 3.0f, -4.0f, 1.0f);
 glm::vec4 camera_lookat_l = glm::vec4(1.0f, 1.0f, -4.0f, 1.0f);
 glm::vec4 cameraPos  = firstCameraPos;
 
@@ -311,6 +316,12 @@ int main(int argc, char* argv[])
     // Carregamos duas imagens para serem utilizadas como textura
     LoadTextureImage("../../data/dirt.jpg");      // TextureImage0
     LoadTextureImage("../../data/fur.jpg");      // TextureImage1
+    LoadTextureImage("../../data/cow.jpg"); // TextureImage2
+
+    // Construímos a representação de objetos geométricos através de malhas de triângulos
+    ObjModel cowModel("../../data/cow.obj");
+    ComputeNormals(&cowModel);
+    BuildTrianglesAndAddToVirtualScene(&cowModel);
 
     ObjModel bunnymodel("../../data/bunny.obj");
     ComputeNormals(&bunnymodel);
@@ -375,17 +386,25 @@ int main(int argc, char* argv[])
         float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
 
         glm::mat4 view;
-        
+
         cameraTarget =    glm::vec4(x,y,z,0.0f);
         glm::vec4 cameraOnEyesHeight =    glm::vec4(x,0.0f,z,0.0f);
         glm::vec4 genericUp =       glm::vec4(0.0f, 1.0f ,0.0f ,0.0f);
         glm::vec4 cameraRight =     crossproduct(genericUp,cameraTarget);
         glm::vec4 cameraUp =        crossproduct(cameraTarget,cameraRight);
-        cameraPos = GetNewCameraPos(cameraPos, cameraOnEyesHeight, cameraRight, arrayOfBunnys);
+
+        // Setting the cameraView based on the user choice
+        if (g_UseFirstPersonView) {
+            cameraPos.y = 1.5;
+            cameraPos = GetNewCameraPos(cameraPos, cameraOnEyesHeight, cameraRight, arrayOfBunnys);
+        } else {
+            cameraPos.y = 4.0;
+            cameraPos = GetNewCameraPos(cameraPos, cameraOnEyesHeight, cameraRight, arrayOfBunnys);
+        }
+
         // Computamos a matriz "View" utilizando os parâmetros da câmera para
         // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
         view = Matrix_Camera_View(cameraPos, cameraTarget, cameraUp);
-        
 
         // Agora computamos a matriz de Projeção.
         glm::mat4 projection;
@@ -420,6 +439,25 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
         glUniformMatrix4fv(projection_uniform , 1 , GL_FALSE , glm::value_ptr(projection));
 
+        if (g_UseFirstPersonView) {
+            // Desenhamos a vaca em primeira pessoa
+            model = Matrix_Translate(cameraPos.x, cameraPos.y-1.5, cameraPos.z)
+                    * Matrix_Rotate_Y(-1.0)
+                    * Matrix_Scale(1.0, 2.0, 2.0);
+                glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(object_id_uniform, COW);
+                DrawVirtualObject("cow");
+        } else {
+            // Desenhamos a vaca em terceira pessoa
+            model = Matrix_Translate(cameraPos.x+3, cameraPos.y-4.0, cameraPos.z+5)
+                    * Matrix_Rotate_Y(-1.0)
+                    * Matrix_Scale(1.0, 2.0, 2.0);
+                glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(object_id_uniform, COW);
+                DrawVirtualObject("cow");
+        }
+
+
         // Desenhamos os modelos dos coelhos
         int remainingBunnys = NUMBER_OF_BUNNYS;
         for(int i=0; i < NUMBER_OF_BUNNYS; i++){
@@ -435,7 +473,7 @@ int main(int argc, char* argv[])
             remainingBunnys --;
         }
 
-        
+
         DrawEnviroment();
 
         // Imprimimos na tela informação sobre o número de quadros renderizados
@@ -1244,6 +1282,12 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_H && action == GLFW_PRESS)
     {
         g_ShowInfoText = !g_ShowInfoText;
+    }
+
+    // Se o usuário apertar a tecla F, utilizamos a camera em primeira pessoa.
+    if (key == GLFW_KEY_Q && action == GLFW_PRESS)
+    {
+        g_UseFirstPersonView = !g_UseFirstPersonView;
     }
 
     // Se o usuário apertar a tecla R, recarregamos os shaders dos arquivos "shader_fragment.glsl" e "shader_vertex.glsl".
