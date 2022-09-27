@@ -2,7 +2,7 @@
 //
 //              TRABALHO FINAL FCG
 //           DAVI HAAS RODRIGUES - 00288844
-//                      IAGO
+//           IAGO TONELLO - 00318962 
 //
 //=================================================
 
@@ -441,8 +441,16 @@ int main(int argc, char* argv[])
 
         if (g_UseFirstPersonView) {
             // Desenhamos a vaca em primeira pessoa
+
+            std::cout << "First Person View" << std::endl;
+            std::cout << "Camera pos y = " << y << std::endl;
+            std::cout << "Camera pos x = " << x << std::endl;
+            std::cout << "Camera pos z = " << z << std::endl;
+
+
+
             model = Matrix_Translate(cameraPos.x, cameraPos.y-1.5, cameraPos.z)
-                    * Matrix_Rotate_Y(-1.0)
+                    * Matrix_Rotate_Y(g_CameraTheta - 1.5)
                     * Matrix_Scale(1.0, 2.0, 2.0);
                 glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
                 glUniform1i(object_id_uniform, COW);
