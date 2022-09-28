@@ -49,9 +49,9 @@
 // Headers locais, definidos na pasta "include/"
 #include "utils.h"
 #include "matrices.h"
+#include "collisions.cpp"
 #include "sceneObjs.cpp"
 
-// Nossas inclusões
 #include <array>
 #include <random>
 
@@ -363,6 +363,9 @@ int main(int argc, char *argv[])
     bool isNight = false;
     float lastColorTime = 20.0f;
 
+    // Desenhamos os modelos dos coelhos
+    int remainingBunnys = NUMBER_OF_BUNNYS;
+
     // Ficamos em loop, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
     {
@@ -476,17 +479,27 @@ int main(int argc, char *argv[])
             DrawVirtualObject("cow");
         }
 
-        // Desenhamos os modelos dos coelhos
-        int remainingBunnys = NUMBER_OF_BUNNYS;
-        for (int i = 0; i < NUMBER_OF_BUNNYS; i++)
-        {
-            // desenha a coelho no mapa
+
+
+
+        //Colision cow and bunny
+        for(int i = 0; i < remainingBunnys; i++) {
+            if (arrayOfBunnys[i].isAlive) {
+                if (cubeOnCubeCollision(cameraPos, arrayOfBunnys[i].position)) {
+                    arrayOfBunnys.erase(arrayOfBunnys.begin() + i);
+                    remainingBunnys--;
+                }
+            }
+        }
+
+
+        for (int i = 0; i < remainingBunnys; i++) {
+
             model = Matrix_Translate(arrayOfBunnys[i].position.x, arrayOfBunnys[i].position.y, arrayOfBunnys[i].position.z) * Matrix_Scale(0.7, 0.7, 0.7) * Matrix_Rotate_Y(0.0) * Matrix_Rotate_Z(0.0);
             glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
             glUniform1i(object_id_uniform, BUNNY);
             DrawVirtualObject("bunny");
 
-            remainingBunnys--;
         }
 
         DrawEnviroment();
@@ -516,6 +529,7 @@ int main(int argc, char *argv[])
     // Fim do programa
     return 0;
 }
+
 
 // Coloca coelhos aleatórias pelo mapa.
 // As coelhos são colocadas sempre dentro dos limites do mapa.
@@ -705,6 +719,9 @@ void LoadTextureImage(const char *filename)
 
     g_NumLoadedTextures += 1;
 }
+
+
+
 
 // Função que desenha um objeto armazenado em g_VirtualScene. Veja definição
 // dos objetos na função BuildTrianglesAndAddToVirtualScene().
