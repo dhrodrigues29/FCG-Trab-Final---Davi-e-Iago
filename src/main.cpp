@@ -68,6 +68,8 @@ bool s_Key_Pressed = false;
 bool a_Key_Pressed = false;
 bool d_Key_Pressed = false;
 bool shift_Key_Pressed = false;
+bool left_Key_Pressed = false;
+bool right_Key_Pressed = false;
 
 // Variávels para realizar o salto
 #define ON_GROUND 0
@@ -244,6 +246,17 @@ float timeVariation;
 std::vector<SceneObj> arrayOfBunnys = spawnBunnys();
 SceneObj myBunny = SceneObj(0, vec3(0.0f, 0.0f, 0.0f), true);
 
+
+bool isOpenMenu = true;
+std::vector<std::string> cowOptionsPath = {"TextureImage1", "TextureImage2"}; 
+int cowOptionsIndex = 0;
+std::string chosenCow = cowOptionsPath[cowOptionsIndex];
+std::string shaderFragmentToLoad = "../../src/shader_fragment_menu.glsl";
+
+
+int bunnyCount = 0;
+
+
 int main(int argc, char *argv[])
 {
     // Variável randomica geral
@@ -276,7 +289,7 @@ int main(int argc, char *argv[])
     // Criamos uma janela do sistema operacional, com 800 colunas e 600 linhas
     // de pixels, e com título "INF01047 ...".
     GLFWwindow *window;
-    window = glfwCreateWindow(800, 600, "INF01047 - 00288844 - Davi Haas Rodrigues", NULL, NULL);
+    window = glfwCreateWindow(800, 600, "Bunny Hunter", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -322,8 +335,11 @@ int main(int argc, char *argv[])
 
     // Carregamos duas imagens para serem utilizadas como textura
     LoadTextureImage("../../data/dirt.jpg"); // TextureImage0
+
+    //Textura do Personagem
     LoadTextureImage("../../data/fur.jpg");  // TextureImage1
     LoadTextureImage("../../data/cow.jpg");  // TextureImage2
+
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel cowModel("../../data/cow.obj");
@@ -369,136 +385,220 @@ int main(int argc, char *argv[])
     // Ficamos em loop, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
     {
-        // Tempo de jogo
-        timeNow = (float)glfwGetTime();
-        timeVariation = timeNow - timePrevious;
-        timePrevious = timeNow;
-
-        //Isso pode ser usado ou não
-        // Definimos a cor do céu como azul no dia e preto a noite
-        if (timeNow > lastColorTime)
-        {
-            lastColorTime += 20.0f;
-            isNight = !isNight;
-        }
-
-        if (isNight)
-            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        else
-            glClearColor(0.5f, 1.60f, 2.50f, 0.0f);
-
-        // "Pintamos" todos os pixels do framebuffer com a cor definida acima,
-        // e também resetamos todos os pixels do Z-buffer (depth buffer).
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // Pedimos para a GPU utilizar o programa de GPU criado acima (contendo
-        // os shaders de vértice e fragmentos).
-        glUseProgram(program_id);
-
-        // Computamos a posição da câmera utilizando coordenadas esféricas.  As
-        // variáveis g_CameraDistance, g_CameraPhi, e g_CameraTheta são
-        // controladas pelo mouse do usuário. Veja as funções CursorPosCallback()
-        // e ScrollCallback().
-        float r = g_CameraDistance;
-        float y = r * sin(g_CameraPhi);
-        float z = r * cos(g_CameraPhi) * cos(g_CameraTheta);
-        float x = r * cos(g_CameraPhi) * sin(g_CameraTheta);
-
-        glm::mat4 view;
-
-        cameraTarget = glm::vec4(x, y, z, 0.0f);
-        glm::vec4 cameraOnEyesHeight = glm::vec4(x, 0.0f, z, 0.0f);
-        glm::vec4 genericUp = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-        glm::vec4 cameraRight = crossproduct(genericUp, cameraTarget);
-        glm::vec4 cameraUp = crossproduct(cameraTarget, cameraRight);
-
-        // Setting the cameraView based on the user choice
-        if (g_UseFirstPersonView)
-        {
-            cameraPos.y = camera_height;
-            cameraPos = GetNewCameraPos(cameraPos, cameraOnEyesHeight, cameraRight, arrayOfBunnys);
-        }
-        else
-        {
-            cameraPos.y = 4.0;
-            cameraPos = GetNewCameraPos(cameraPos, cameraOnEyesHeight, cameraRight, arrayOfBunnys);
-        }
-
-        // Computamos a matriz "View" utilizando os parâmetros da câmera para
-        // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
-        view = Matrix_Camera_View(cameraPos, cameraTarget, cameraUp);
-
-        // Agora computamos a matriz de Projeção.
-        glm::mat4 projection;
-
-        // Note que, no sistema de coordenadas da câmera, os planos near e far
-        // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
-        float nearplane = -0.1f;  // Posição do "near plane"
-        float farplane = -400.0f; // Posição do "far plane"
-
-        if (g_UsePerspectiveProjection)
-        {
-            // Projeção Perspectiva.
-            float field_of_view = PI / 3.0f;
-            projection = Matrix_Perspective(field_of_view, g_ScreenRatio, nearplane, farplane);
-        }
-        else
-        {
-            // Projeção Ortográfica.
-            float t = 1.5f * g_CameraDistance / 2.5f;
-            float b = -t;
-            float r = t * g_ScreenRatio;
-            float l = -r;
-            projection = Matrix_Orthographic(l, r, b, t, nearplane, farplane);
-        }
-
-        // Transformação identidade de modelagem
-        glm::mat4 model = Matrix_Identity();
-
-        // Enviamos as matrizes "view" e "projection" para a placa de vídeo
-        // (GPU). Veja o arquivo "shader_vertex.glsl", onde estas são
-        // efetivamente aplicadas em todos os pontos.
-        glUniformMatrix4fv(view_uniform, 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
-
-        if (g_UseFirstPersonView)
-        {
-
-            // Desenhamos a vaca em primeira pessoa
-            model = Matrix_Translate(cameraPos.x, cameraPos.y - 1.5, cameraPos.z) * Matrix_Rotate_Y(g_CameraTheta - 1.5) * Matrix_Scale(1.0, 2.0, 2.0);
-            glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-            glUniform1i(object_id_uniform, COW);
-            DrawVirtualObject("cow");
-        }
-        else
-        {
-            // Desenhamos a vaca em terceira pessoa
-            model = Matrix_Translate(cameraPos.x + 3, cameraPos.y - 4.0, cameraPos.z + 5) * Matrix_Rotate_Y(-1.0) * Matrix_Scale(1.0, 2.0, 2.0);
-            glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-            glUniform1i(object_id_uniform, COW);
-            DrawVirtualObject("cow");
-        }
 
 
+        if(isOpenMenu) {
+              
+                glClearColor(0.5f, 1.60f, 2.50f, 0.0f);
+
+                // "Pintamos" todos os pixels do framebuffer com a cor definida acima,
+                // e também resetamos todos os pixels do Z-buffer (depth buffer).
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+                // Pedimos para a GPU utilizar o programa de GPU criado acima (contendo
+                // os shaders de vértice e fragmentos).
+                glUseProgram(program_id);
+
+                // Computamos a posição da câmera utilizando coordenadas esféricas.  As
+                // variáveis g_CameraDistance, g_CameraPhi, e g_CameraTheta são
+                // controladas pelo mouse do usuário. Veja as funções CursorPosCallback()
+                // e ScrollCallback().
+                float r = g_CameraDistance;
+                float y = r * sin(g_CameraPhi);
+                float z = r * cos(g_CameraPhi) * cos(g_CameraTheta);
+                float x = r * cos(g_CameraPhi) * sin(g_CameraTheta);
+
+                glm::mat4 view;
+
+                glm::vec4 camera_position_c  = glm::vec4(x,y,z,1.0f); // Ponto "c", centro da câmera
+                glm::vec4 camera_lookat_l    = glm::vec4(0.0f,0.0f,0.0f,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+                glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
+                glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
 
 
-        //Colision cow and bunny
-        for(int i = 0; i < remainingBunnys; i++) {
-            if (arrayOfBunnys[i].isAlive) {
-                if (cubeOnCubeCollision(cameraPos, arrayOfBunnys[i].position)) {
-                    arrayOfBunnys.erase(arrayOfBunnys.begin() + i);
-                    remainingBunnys--;
+                // Computamos a matriz "View" utilizando os parâmetros da câmera para
+                // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
+                view = Matrix_Camera_View(camera_position_c, camera_view_vector, camera_up_vector);
+
+                // Agora computamos a matriz de Projeção.
+                glm::mat4 projection;
+
+                // Note que, no sistema de coordenadas da câmera, os planos near e far
+                // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
+                float nearplane = -0.1f;  // Posição do "near plane"
+                float farplane = -400.0f; // Posição do "far plane"
+
+                if (g_UsePerspectiveProjection)
+                {
+                    // Projeção Perspectiva.
+                    float field_of_view = PI / 3.0f;
+                    projection = Matrix_Perspective(field_of_view, g_ScreenRatio, nearplane, farplane);
                 }
-            }
-        }
+                else
+                {
+                    // Projeção Ortográfica.
+                    float t = 1.5f * g_CameraDistance / 2.5f;
+                    float b = -t;
+                    float r = t * g_ScreenRatio;
+                    float l = -r;
+
+                    //Look at cow
+                    
+                    projection = Matrix_Orthographic(l, r, b, t, nearplane, farplane);
+                }
+
+                // Transformação identidade de modelagem
+                glm::mat4 model = Matrix_Identity();
+
+                // Enviamos as matrizes "view" e "projection" para a placa de vídeo
+                // (GPU). Veja o arquivo "shader_vertex.glsl", onde estas são
+                // efetivamente aplicadas em todos os pontos.
+                glUniformMatrix4fv(view_uniform, 1, GL_FALSE, glm::value_ptr(view));
+                glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
 
 
-        for (int i = 0; i < remainingBunnys; i++) {
+                // Desenhamos a vaca em terceira pessoa
+                model = Matrix_Translate(0, 0.2f, 0) * Matrix_Scale(1.0, 2.0, 2.0);
+                glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+                glUniform1i(object_id_uniform, COW);
+                DrawVirtualObject("cow");
 
-            model = Matrix_Translate(arrayOfBunnys[i].position.x, arrayOfBunnys[i].position.y, arrayOfBunnys[i].position.z) * Matrix_Scale(0.7, 0.7, 0.7) * Matrix_Rotate_Y(0.0) * Matrix_Rotate_Z(0.0);
-            glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-            glUniform1i(object_id_uniform, BUNNY);
-            DrawVirtualObject("bunny");
+        }else {
+                // Tempo de jogo
+                timeNow = (float)glfwGetTime();
+                timeVariation = timeNow - timePrevious;
+                timePrevious = timeNow;
+
+                //Isso pode ser usado ou não
+                // Definimos a cor do céu como azul no dia e preto a noite
+                if (timeNow > lastColorTime)
+                {
+                    lastColorTime += 20.0f;
+                    isNight = !isNight;
+                }
+
+                if (isNight)
+                    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+                else
+                    glClearColor(0.5f, 1.60f, 2.50f, 0.0f);
+
+                // "Pintamos" todos os pixels do framebuffer com a cor definida acima,
+                // e também resetamos todos os pixels do Z-buffer (depth buffer).
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+                // Pedimos para a GPU utilizar o programa de GPU criado acima (contendo
+                // os shaders de vértice e fragmentos).
+                glUseProgram(program_id);
+
+                // Computamos a posição da câmera utilizando coordenadas esféricas.  As
+                // variáveis g_CameraDistance, g_CameraPhi, e g_CameraTheta são
+                // controladas pelo mouse do usuário. Veja as funções CursorPosCallback()
+                // e ScrollCallback().
+                float r = g_CameraDistance;
+                float y = r * sin(g_CameraPhi);
+                float z = r * cos(g_CameraPhi) * cos(g_CameraTheta);
+                float x = r * cos(g_CameraPhi) * sin(g_CameraTheta);
+
+                glm::mat4 view;
+
+                cameraTarget = glm::vec4(x, y, z, 0.0f);
+                glm::vec4 cameraOnEyesHeight = glm::vec4(x, 0.0f, z, 0.0f);
+                glm::vec4 genericUp = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+                glm::vec4 cameraRight = crossproduct(genericUp, cameraTarget);
+                glm::vec4 cameraUp = crossproduct(cameraTarget, cameraRight);
+
+                // Setting the cameraView based on the user choice
+                if (g_UseFirstPersonView)
+                {
+                    cameraPos.y = camera_height;
+                    cameraPos = GetNewCameraPos(cameraPos, cameraOnEyesHeight, cameraRight, arrayOfBunnys);
+                }
+                else
+                {
+                    cameraPos.y = 4.0;
+                    cameraPos = GetNewCameraPos(cameraPos, cameraOnEyesHeight, cameraRight, arrayOfBunnys);
+                }
+
+                // Computamos a matriz "View" utilizando os parâmetros da câmera para
+                // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
+                view = Matrix_Camera_View(cameraPos, cameraTarget, cameraUp);
+
+                // Agora computamos a matriz de Projeção.
+                glm::mat4 projection;
+
+                // Note que, no sistema de coordenadas da câmera, os planos near e far
+                // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
+                float nearplane = -0.1f;  // Posição do "near plane"
+                float farplane = -400.0f; // Posição do "far plane"
+
+                if (g_UsePerspectiveProjection)
+                {
+                    // Projeção Perspectiva.
+                    float field_of_view = PI / 3.0f;
+                    projection = Matrix_Perspective(field_of_view, g_ScreenRatio, nearplane, farplane);
+                }
+                else
+                {
+                    // Projeção Ortográfica.
+                    float t = 1.5f * g_CameraDistance / 2.5f;
+                    float b = -t;
+                    float r = t * g_ScreenRatio;
+                    float l = -r;
+
+                    //Look at cow
+                    
+                    projection = Matrix_Orthographic(l, r, b, t, nearplane, farplane);
+                }
+
+                // Transformação identidade de modelagem
+                glm::mat4 model = Matrix_Identity();
+
+                // Enviamos as matrizes "view" e "projection" para a placa de vídeo
+                // (GPU). Veja o arquivo "shader_vertex.glsl", onde estas são
+                // efetivamente aplicadas em todos os pontos.
+                glUniformMatrix4fv(view_uniform, 1, GL_FALSE, glm::value_ptr(view));
+                glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
+
+                if (g_UseFirstPersonView)
+                {
+
+                    // Desenhamos a vaca em primeira pessoa
+                    model = Matrix_Translate(cameraPos.x, cameraPos.y - 1.5, cameraPos.z) * Matrix_Rotate_Y(g_CameraTheta - 1.55) * Matrix_Scale(1.0, 2.0, 2.0);
+                    glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+                    glUniform1i(object_id_uniform, COW);
+                    DrawVirtualObject("cow");
+                }
+                else
+                {
+                    // Desenhamos a vaca em terceira pessoa
+                    model = Matrix_Translate(cameraPos.x + 3, cameraPos.y - 4.0, cameraPos.z + 5) * Matrix_Rotate_Y(g_CameraTheta -1.55) * Matrix_Scale(1.0, 2.0, 2.0);
+                    glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+                    glUniform1i(object_id_uniform, COW);
+                    DrawVirtualObject("cow");
+                }
+
+
+
+
+                //Colision cow and bunny
+                for(int i = 0; i < remainingBunnys; i++) {
+                    if (arrayOfBunnys[i].isAlive) {
+                        if (cubeOnCubeCollision(cameraPos, arrayOfBunnys[i].position)) {
+                            arrayOfBunnys.erase(arrayOfBunnys.begin() + i);
+                            remainingBunnys--;
+                        }
+                    }
+                }
+
+
+                for (int i = 0; i < remainingBunnys; i++) {
+
+                    model = Matrix_Translate(arrayOfBunnys[i].position.x, arrayOfBunnys[i].position.y, arrayOfBunnys[i].position.z) * Matrix_Scale(0.7, 0.7, 0.7) * Matrix_Rotate_Y(0.0) * Matrix_Rotate_Z(0.0);
+                    glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+                    glUniform1i(object_id_uniform, BUNNY);
+                    DrawVirtualObject("bunny");
+
+                }
 
         }
 
@@ -718,6 +818,8 @@ void LoadTextureImage(const char *filename)
     stbi_image_free(data);
 
     g_NumLoadedTextures += 1;
+
+    std::cout << g_NumLoadedTextures << std::endl;
 }
 
 
@@ -779,7 +881,7 @@ void LoadShadersFromFiles()
     //       o-- shader_fragment.glsl
     //
     vertex_shader_id = LoadShader_Vertex("../../src/shader_vertex.glsl");
-    fragment_shader_id = LoadShader_Fragment("../../src/shader_fragment.glsl");
+    fragment_shader_id = LoadShader_Fragment(shaderFragmentToLoad.c_str());
 
     // Deletamos o programa de GPU anterior, caso ele exista.
     if (program_id != 0)
@@ -1083,6 +1185,18 @@ void LoadShader(const char *filename, GLuint shader_id)
     std::stringstream shader;
     shader << file.rdbuf();
     std::string str = shader.str();
+
+    //substituir colocarTexturaAqui por TextureImage0
+    std::string str2 = "colocarTexturaAqui";
+    std::string::size_type pos = 0u;
+
+    std::cout << "chosenCow: " << chosenCow << std::endl;
+    while ((pos = str.find(str2, pos)) != std::string::npos)
+    {
+        str.replace(pos, str2.length(), chosenCow);
+        pos += chosenCow.length();
+    }
+
     const GLchar *shader_string = str.c_str();
     const GLint shader_string_length = static_cast<GLint>(str.length());
 
@@ -1408,6 +1522,46 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
     {
         shift_Key_Pressed = false;
     }
+
+
+    if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
+    {
+        
+        if(cowOptionsIndex < cowOptionsPath.size() - 1)
+        {
+            cowOptionsIndex++;
+            chosenCow = cowOptionsPath[cowOptionsIndex] ;   
+            LoadShadersFromFiles();
+            fprintf(stdout, "Shaders recarregados!\n");
+            fflush(stdout);
+        }
+
+        
+    }
+
+    if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
+    {
+        if(cowOptionsIndex > 0)
+        {
+            cowOptionsIndex--;
+            chosenCow = cowOptionsPath[cowOptionsIndex] ;   
+            LoadShadersFromFiles();
+            fprintf(stdout, "Shaders recarregados!\n");
+            fflush(stdout);
+        }
+    }
+
+    if(isOpenMenu && key == GLFW_KEY_ENTER && action == GLFW_PRESS)
+    {
+        shaderFragmentToLoad = "../../src/shader_fragment.glsl";
+        isOpenMenu = false;
+        LoadShadersFromFiles();
+        fprintf(stdout, "Shaders recarregados!\n");
+        fflush(stdout);
+    }
+
+
+
 }
 
 // Definimos o callback para impressão de erros da GLFW no terminal

@@ -37,6 +37,8 @@ uniform vec4 bbox_max;
 uniform sampler2D TextureImage0; //BUNNY
 uniform sampler2D TextureImage1; //PLANE
 uniform sampler2D TextureImage2; //COW
+uniform sampler2D TextureImage3; //COW
+uniform sampler2D TextureImage4; //COW
 
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
@@ -56,6 +58,11 @@ void main()
     // sistema de coordenadas da câmera.
     vec4 origin = vec4(0.0, 0.0, 0.0, 1.0);
     vec4 camera_position = inverse(view) * origin;
+
+    //Spotlight
+    float spotlight_opening = 0.8660254; //cos(30)
+    vec4 spotlight_position = vec4(0.0, 3.0, 0.0, 1.0);
+    vec4 spotlight_direction = normalize(vec4(0.0, -1.0, 0.0, 0.0));
 
     // O fragmento atual é coberto por um ponto que percente à superfície de um
     // dos objetos virtuais da cena. Este ponto, p, possui uma posição no
@@ -126,6 +133,7 @@ void main()
     {
         // Propriedades espectrais da vaca
         Kd = vec3(0.8, 0.8, 0.8);
+        Ks = vec3(0.8,0.8,0.8);
         Ka = vec3(0.2,0.2,0.2);
         q = 8.0;
 
@@ -167,12 +175,27 @@ void main()
     vec3 blinn_phong_specular_term  = Ks*I*pow(dot(n, h), q);
 
     
-    if      ( object_id == BUNNY )    
-        color = FurTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
-    else if ( object_id == PLANE )    
-        color = DirtTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
-    else if ( object_id == COW )      
-        color = CowTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
+    vec4 object_distance = normalize(position_world - spotlight_position);
+
+    
+    if(dot(object_distance, spotlight_direction) > spotlight_opening)
+    {
+        if ( object_id == PLANE )    
+            color = DirtTexture * (lambert_diffuse_term + ambient_term + phong_specular_term);
+        else if ( object_id == COW )      
+            color = CowTexture * (lambert_diffuse_term + ambient_term + phong_specular_term);
+    }
+    else
+    {
+        if ( object_id == PLANE )    
+            color = DirtTexture * (ambient_term);
+        else if ( object_id == COW )      
+            color = CowTexture * (ambient_term);
+    }
+
+
+
+
 
     color = pow(color, vec3(1.0,1.0,1.0)/2.2);
 
