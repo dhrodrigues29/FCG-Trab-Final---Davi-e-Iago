@@ -178,6 +178,8 @@ void main()
     vec4 object_distance = normalize(position_world - spotlight_position);
 
     
+
+    //Aplicat as cores com spotlight e texturas
     if(dot(object_distance, spotlight_direction) > spotlight_opening)
     {
         if ( object_id == PLANE )    
@@ -192,9 +194,6 @@ void main()
         else if ( object_id == COW )      
             color = CowTexture * (ambient_term);
     }
-
-
-
 
 
     color = pow(color, vec3(1.0,1.0,1.0)/2.2);

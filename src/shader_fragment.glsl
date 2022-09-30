@@ -47,9 +47,6 @@ out vec3 color;
 #define M_PI_2 1.57079632679489661923
 
 
-vec4 P;
-vec4 C;
-
 void main()
 {
     // Obtemos a posição da câmera utilizando a inversa da matriz que define o
@@ -101,12 +98,13 @@ void main()
         //Projeção esférica
         vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
         float rho = 1.0;
-        P = position_model;
-        C = bbox_center;
-        vec4 pLine = C + (rho * ((P-C)/length(P-C)));
-        vec4 pVect = pLine - C;
+
+        vec4 pLine = bbox_center + (rho * ((position_model-bbox_center)/length(position_model-bbox_center)));
+        vec4 pVect = pLine - bbox_center;
+
         float phi = asin(pVect.y/rho);
         float theta = atan(pVect.x, pVect.z);
+
         V = (phi + M_PI_2) / M_PI;
         U = (theta + M_PI) / (2 * M_PI);
     }
@@ -167,11 +165,14 @@ void main()
     vec3 blinn_phong_specular_term  = Ks*I*pow(dot(n, h), q);
 
     
-    if      ( object_id == BUNNY )    
+    //Atribuição de cores
+    if(object_id == BUNNY)    
         color = FurTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
-    else if ( object_id == PLANE )    
+    else 
+        if (object_id == PLANE)    
         color = DirtTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
-    else if ( object_id == COW )      
+    else 
+        if (object_id == COW)      
         color = CowTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
 
     color = pow(color, vec3(1.0,1.0,1.0)/2.2);
