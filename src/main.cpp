@@ -138,7 +138,7 @@ void TextRendering_PrintMatrixVectorProductDivW(GLFWwindow *window, glm::mat4 M,
 
 // Funções abaixo renderizam como texto na janela OpenGL algumas matrizes e
 // outras informações do programa. Definidas após main().
-void TextRendering_ShowFramesPerSecond(GLFWwindow *window);
+void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft);
 
 // Funções callback para comunicação com o sistema operacional e interação do
 // usuário. Veja mais comentários nas definições das mesmas, abaixo.
@@ -238,10 +238,11 @@ GLuint g_NumLoadedTextures = 0;
 // Outros estados
 glm::vec4 cameraTarget;
 
-float timePrevious;
-float startTime;
+float oldTime;
+float beginTime;
 float timeNow;
-float timeVariation;
+float timeElapsed;
+float playingTime = 0;
 
 std::vector<SceneObj> arrayOfBunnys = spawnBunnys();
 SceneObj myBunny = SceneObj(0, vec3(0.0f, 0.0f, 0.0f), true);
@@ -251,8 +252,6 @@ std::vector<std::string> cowOptionsPath = {"TextureImage1", "TextureImage2"};
 int cowOptionsIndex = 0;
 std::string chosenCow = cowOptionsPath[cowOptionsIndex];
 std::string shaderFragmentToLoad = "../../src/shader_fragment_menu.glsl";
-
-int bunnyCount = 0;
 
 void GameMenu()
 {
@@ -356,9 +355,9 @@ int main(int argc, char *argv[])
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 
-#ifdef __APPLE__
+    #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
+    #endif
 
     // Pedimos para utilizar o perfil "core", isto é, utilizaremos somente as
     // funções modernas de OpenGL.
@@ -448,8 +447,8 @@ int main(int argc, char *argv[])
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
 
-    startTime = (float)glfwGetTime();
-    timePrevious = startTime;
+    beginTime = (float)glfwGetTime();
+    oldTime = beginTime;
 
     // Isso pode ser usado ou não
     bool isNight = false;
@@ -473,8 +472,8 @@ int main(int argc, char *argv[])
 
             // Tempo de jogo
             timeNow = (float)glfwGetTime();
-            timeVariation = timeNow - timePrevious;
-            timePrevious = timeNow;
+            timeElapsed = timeNow - oldTime;
+            oldTime = timeNow;
 
             // Isso pode ser usado ou não
             //  Definimos a cor do céu como azul no dia e preto a noite
@@ -593,6 +592,11 @@ int main(int argc, char *argv[])
                     {
                         arrayOfBunnys.erase(arrayOfBunnys.begin() + i);
                         remainingBunnys--;
+
+                        if (remainingBunnys == 0)
+                        {
+                            playingTime = (float)glfwGetTime() - beginTime;
+                        }
                     }
                 }
             }
@@ -607,11 +611,12 @@ int main(int argc, char *argv[])
             }
         }
 
+
         DrawEnviroment();
 
         // Imprimimos na tela informação sobre o número de quadros renderizados
         // por segundo (frames per second).
-        TextRendering_ShowFramesPerSecond(window);
+        TextRendering_ShowFramesPerSecond(window, remainingBunnys);
 
         // O framebuffer onde OpenGL executa as operações de renderização não
         // é o mesmo que está sendo mostrado para o usuário, caso contrário
@@ -660,10 +665,11 @@ std::vector<SceneObj> spawnBunnys()
         // rand position to put the new cow
         posX = genX(engine);
         posZ = genZ(engine);
-        posBunny = vec3(posX, -0.3f, posZ);
+        posBunny = vec3(posX, -0.3, posZ);
         newBunny.id = i;
         newBunny.position = posBunny;
         arrayOfBunnys[i] = newBunny;
+
     }
 
     return arrayOfBunnys;
@@ -686,9 +692,9 @@ glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm
     {
 
         if (shift_Key_Pressed)
-            newCameraPos = newCameraPos + (cameraOnEyesHeight * (timeVariation * 2.5f));
+            newCameraPos = newCameraPos + (cameraOnEyesHeight * (timeElapsed * 2.5f));
         else
-            newCameraPos = newCameraPos + (cameraOnEyesHeight * timeVariation);
+            newCameraPos = newCameraPos + (cameraOnEyesHeight * timeElapsed);
 
         if (newCameraPos.x < -PLANE_SIZE_X + 1 || newCameraPos.x > PLANE_SIZE_Z - 1)
             newX = auxCameraPos.x;
@@ -707,7 +713,7 @@ glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm
 
     if (s_Key_Pressed)
     {
-        newCameraPos = newCameraPos - (cameraOnEyesHeight * timeVariation);
+        newCameraPos = newCameraPos - (cameraOnEyesHeight * timeElapsed);
         if (newCameraPos.x < -PLANE_SIZE_X + 1 || newCameraPos.x > PLANE_SIZE_Z - 1)
             newX = auxCameraPos.x;
         else
@@ -725,7 +731,7 @@ glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm
 
     if (d_Key_Pressed)
     {
-        newCameraPos = newCameraPos - (cameraRight * timeVariation);
+        newCameraPos = newCameraPos - (cameraRight * timeElapsed);
         if (newCameraPos.x < -PLANE_SIZE_X + 1 || newCameraPos.x > PLANE_SIZE_Z - 1)
             newX = auxCameraPos.x;
         else
@@ -743,7 +749,7 @@ glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm
 
     if (a_Key_Pressed)
     {
-        newCameraPos = newCameraPos + (cameraRight * timeVariation);
+        newCameraPos = newCameraPos + (cameraRight * timeElapsed);
         if (newCameraPos.x < -PLANE_SIZE_X + 1 || newCameraPos.x > PLANE_SIZE_Z - 1)
             newX = auxCameraPos.x;
         else
@@ -1571,7 +1577,7 @@ void ErrorCallback(int error, const char *description)
 
 // Escrevemos na tela o número de quadros renderizados por segundo (frames per
 // second).
-void TextRendering_ShowFramesPerSecond(GLFWwindow *window)
+void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
 {
     if (!g_ShowInfoText)
         return;
@@ -1582,6 +1588,27 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window)
     static int ellapsed_frames = 0;
     static char buffer[20] = "?? fps";
     static int numchars = 7;
+
+    // Variaveis para printar os coelhos restantes e tempo corrido
+    static char bufferBunnys[50];
+    static char bufferBunnysPlay[80];
+    static char bufferBunnysWin[80];
+    static char bufferBunnysWinTime[80];
+    static char bufferBunnysReplay[80];
+
+    snprintf(bufferBunnysWin, 80, "    You Won!!");
+    snprintf(bufferBunnysWinTime, 80, "You catch all the Bunnys in %.0f seconds!", playingTime);
+    snprintf(bufferBunnysReplay, 80, "Press 'ESC' to exit or 'Enter' to play again!");
+    snprintf(bufferBunnys, 50, "%d Remaining Bunnys", bunnysLeft);
+    snprintf(bufferBunnysPlay, 80, "Catch all the bunnys by walking over them!");
+
+    static char bufferBunnysInstructions1[80];
+    static char bufferBunnysInstructions2[80];
+    static char bufferBunnysInstructions3[80];
+
+    snprintf(bufferBunnysInstructions1, 80, "Use the WASD keys to move");
+    snprintf(bufferBunnysInstructions2, 80, "Use the mouse moviments to see around");
+    snprintf(bufferBunnysInstructions3, 80, "Press 'Space' to jump and 'Shift' to run");
 
     ellapsed_frames += 1;
 
@@ -1603,6 +1630,24 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window)
     float charwidth = TextRendering_CharWidth(window);
 
     TextRendering_PrintString(window, buffer, 1.0f - (numchars + 1) * charwidth, 1.0f - lineheight, 1.0f);
+
+    if (!isOpenMenu)
+    {
+        if (bunnysLeft < 1)
+        {
+            TextRendering_PrintString(window, bufferBunnysWin, -0.45 + lineheight, 15*lineheight, 2.5f);
+            TextRendering_PrintString(window, bufferBunnysWinTime, -0.68 + lineheight, 13*lineheight, 1.5f);
+            TextRendering_PrintString(window, bufferBunnysReplay, -0.75 + lineheight, 11*lineheight, 1.5f);
+        } else {
+            TextRendering_PrintString(window, bufferBunnysPlay, -0.75 + lineheight, 17*lineheight, 1.5f);
+            TextRendering_PrintString(window, bufferBunnys, -0.45 + lineheight, 14*lineheight, 2.0f);
+            TextRendering_PrintString(window, bufferBunnysInstructions1, -1.05 + lineheight, 10*lineheight, 1.0f);
+            TextRendering_PrintString(window, bufferBunnysInstructions2, -1.05 + lineheight, 9*lineheight, 1.0f);
+            TextRendering_PrintString(window, bufferBunnysInstructions3, -1.05 + lineheight, 8*lineheight, 1.0f);
+        }
+
+    }
+
 }
 
 void DrawEnviroment()
