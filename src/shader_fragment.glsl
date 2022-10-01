@@ -162,7 +162,7 @@ void main()
     vec3 phong_specular_term  = Ks * I * pow(max(0, dot(r,v)), q); 
     
     // Termo especular utilizando o modelo de iluminação de Blinn Phong
-    vec3 blinn_phong_specular_term  = Ks*I*pow(dot(n, h), q);
+    vec3 blinn_phong_specular_term  = Ks * I * pow(dot(n, h), q);
 
     
     //Atribuição de cores
@@ -173,7 +173,7 @@ void main()
         color = DirtTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
     else 
         if (object_id == COW)      
-        color = CowTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
+        color = CowTexture*(lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
 
     color = pow(color, vec3(1.0,1.0,1.0)/2.2);
 

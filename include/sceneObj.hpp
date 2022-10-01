@@ -17,6 +17,13 @@ public:
     SceneObj(int id, vec3 position, bool isRabbit);
     SceneObj();
     void setPosition(vec3 position);
+    void setControlPoints();
+
+    //Pontos de controle para curvas de bezier
+    glm::vec4 p0; //= glm::vec4(-1.0f, -1.0f, 0.5f, 1.0f);
+    glm::vec4 p1;//= glm::vec4(-0.25f, 2.0f, 0.5f, 1.0f);
+    glm::vec4 p2; //= glm::vec4(0.25f,  -2.0f, 0.5f, 1.0f);
+    glm::vec4 p3; //= glm::vec4(1.0f,   1.0f, 0.5f, 1.0f);
 
 };
 

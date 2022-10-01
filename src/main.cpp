@@ -13,6 +13,7 @@
 //  vira
 //    #include <cstdio> // Em C++
 //
+#define _USE_MATH_DEFINES //Para usar M_PI
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -113,6 +114,7 @@ void PopMatrix(glm::mat4 &M);
 
 // Declaração de várias funções utilizadas em main().  Essas estão definidas
 // logo após a definição de main() neste arquivo.
+GLuint BuildTriangles(); // Constrói triângulos para renderização
 void BuildTrianglesAndAddToVirtualScene(ObjModel *);                         // Constrói representação de um ObjModel como malha de triângulos para renderização
 void ComputeNormals(ObjModel *model);                                        // Computa normais de um ObjModel, caso não existam.
 void LoadShadersFromFiles();                                                 // Carrega os shaders de vértice e fragmento, criando um programa de GPU
@@ -252,6 +254,11 @@ std::vector<std::string> cowOptionsPath = {"TextureImage1", "TextureImage2"};
 int cowOptionsIndex = 0;
 std::string chosenCow = cowOptionsPath[cowOptionsIndex];
 std::string shaderFragmentToLoad = "../../src/shader_fragment_menu.glsl";
+
+
+//Variaveis para aplicar curvas de bezier
+bool return_to_start = false;
+float initial_time = 0.0f;
 
 void GameMenu()
 {
@@ -457,6 +464,7 @@ int main(int argc, char *argv[])
     // Desenhamos os modelos dos coelhos
     int remainingBunnys = NUMBER_OF_BUNNYS;
 
+
     // Ficamos em loop, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
     {
@@ -467,7 +475,6 @@ int main(int argc, char *argv[])
         }
         else
         {
-
             // RunGame( lastColorTime, isNight, remainingBunnys);
 
             // Tempo de jogo
@@ -583,32 +590,48 @@ int main(int argc, char *argv[])
                 DrawVirtualObject("cow");
             }
 
-            // Colision cow and bunny
-            for (int i = 0; i < remainingBunnys; i++)
-            {
-                if (arrayOfBunnys[i].isAlive)
-                {
-                    if (cubeOnCubeCollision(cameraPos, arrayOfBunnys[i].position))
-                    {
-                        arrayOfBunnys.erase(arrayOfBunnys.begin() + i);
-                        remainingBunnys--;
+            float delta = timeNow - initial_time;
+            float t = delta;
 
-                        if (remainingBunnys == 0)
-                        {
-                            playingTime = (float)glfwGetTime() - beginTime;
-                        }
-                    }
-                }
+            if(delta >= 1.0f && delta < 2.0f) {
+
+                t = 2.0f - delta;
+
+            }else if(delta >= 2.0f) {
+
+                initial_time = timeNow;
+
             }
 
             for (int i = 0; i < remainingBunnys; i++)
             {
 
+                arrayOfBunnys[i].position = (1-t)*(1-t)*(1-t)*arrayOfBunnys[i].p0 + 3*(1-t)*(1-t)*t*arrayOfBunnys[i].p1 + 3*(1-t)*t*t*arrayOfBunnys[i].p2 + t*t*t*arrayOfBunnys[i].p3;
                 model = Matrix_Translate(arrayOfBunnys[i].position.x, arrayOfBunnys[i].position.y, arrayOfBunnys[i].position.z) * Matrix_Scale(0.7, 0.7, 0.7) * Matrix_Rotate_Y(0.0) * Matrix_Rotate_Z(0.0);
                 glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
                 glUniform1i(object_id_uniform, BUNNY);
                 DrawVirtualObject("bunny");
             }
+
+
+            // Colision cow and bunny
+                for (int i = 0; i < remainingBunnys; i++)
+                {
+                    if (arrayOfBunnys[i].isAlive)
+                    {
+                        if (cubeOnCubeCollision(cameraPos, arrayOfBunnys[i].position))
+                        {
+                            arrayOfBunnys.erase(arrayOfBunnys.begin() + i);
+                            remainingBunnys--;
+
+                            if (remainingBunnys == 0)
+                            {
+                                playingTime = (float)glfwGetTime() - beginTime;
+                            }
+                        }
+                    }
+                }
+
         }
 
 
@@ -624,6 +647,9 @@ int main(int argc, char *argv[])
         // chamada abaixo faz a troca dos buffers, mostrando para o usuário
         // tudo que foi renderizado pelas funções acima.
         // Veja o link: Veja o link: https://en.wikipedia.org/w/index.php?title=Multiple_buffering&oldid=793452829#Double_buffering_in_computer_graphics
+        
+
+        
         glfwSwapBuffers(window);
 
         // Verificamos com o sistema operacional se houve alguma interação do
@@ -669,6 +695,7 @@ std::vector<SceneObj> spawnBunnys()
         newBunny.id = i;
         newBunny.position = posBunny;
         arrayOfBunnys[i] = newBunny;
+        newBunny.setControlPoints();
 
     }
 
@@ -1849,4 +1876,107 @@ void PrintObjModelInfo(ObjModel *model)
 static int cosAngle(glm::vec4 v1, glm::vec4 v2)
 {
     return dot(normalize(v1), normalize(v2));
+}
+
+
+GLuint BuildTriangles()
+{
+    const int numberOfVertices = 17;
+
+    GLfloat twicePi = 2.0 * M_PI;
+    GLfloat radius = 0.7;
+
+    GLfloat verticesX[numberOfVertices];
+    GLfloat verticesY[numberOfVertices];
+    GLfloat verticesZ[numberOfVertices];
+    GLfloat verticesW[numberOfVertices];
+
+
+    verticesX[0] = 0.0f;
+    verticesY[0] = 1.0f;
+    verticesZ[0] = 0.0f;
+    verticesW[0] = 1.0f;
+
+    for( int i = 1; i < numberOfVertices; i++) {
+
+        verticesX[i] = ( radius * cos( i *  twicePi / 15 ) );
+        verticesY[i] = ( radius * sin( i * twicePi / 15 ) );
+        verticesZ[i] = 0.0f;
+        verticesW[i] = 1.0f;
+    }
+
+
+    GLfloat NDC_coefficients[( numberOfVertices ) * 4];
+
+    for ( int i = 0; i < numberOfVertices; i++ )
+    {
+        NDC_coefficients[i * 4] = verticesX[i] ;
+        NDC_coefficients[( i * 4 ) + 1] = verticesY[i];
+        NDC_coefficients[( i * 4 ) + 2] = verticesZ[i] ;
+        NDC_coefficients[( i * 4 ) + 3] = verticesW[i] ;
+
+        printf("[%.2f] [%.2f] [%.2f] [%.2f]\n\n", verticesX[i], verticesY[i], verticesZ[i], verticesW[i] );
+    }
+
+    GLuint VBO_NDC_coefficients_id;
+    glGenBuffers(1, &VBO_NDC_coefficients_id);
+
+    GLuint vertex_array_object_id;
+    glGenVertexArrays(1, &vertex_array_object_id);
+    glBindVertexArray(vertex_array_object_id);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_NDC_coefficients_id);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(NDC_coefficients), NULL, GL_STATIC_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(NDC_coefficients), NDC_coefficients);
+
+    GLuint location = 0; // "(location = 0)" em "shader_vertex.glsl"
+    GLint  number_of_dimensions = 4; // vec4 em "shader_vertex.glsl"
+    glVertexAttribPointer(location, number_of_dimensions, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(location);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    GLfloat color_coefficients[] = {
+    //  R     G     B     A
+        1.0f, 0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 1.0f, 1.0f
+
+    };
+    GLuint VBO_color_coefficients_id;
+    glGenBuffers(1, &VBO_color_coefficients_id);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_color_coefficients_id);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(color_coefficients), NULL, GL_STATIC_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(color_coefficients), color_coefficients);
+    location = 1; // "(location = 1)" em "shader_vertex.glsl"
+    number_of_dimensions = 4; // vec4 em "shader_vertex.glsl"
+    glVertexAttribPointer(location, number_of_dimensions, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(location);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    
+    GLubyte indices[] = { 0,1,2, 0,2,3, 0,3,4, 0,4,5, 0,5,6 ,0,6,7, 0,7,8, 0,8,9 ,0,9,10, 0,10,11, 0,11,12, 0,12,13 ,0,13,14 ,0,14,15 ,0,15,16, 0,16,17 }; // GLubyte: valores entre 0 e 255 (8 bits sem sinal).
+
+    
+    GLuint indices_id;
+    glGenBuffers(1, &indices_id);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices_id);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), NULL, GL_STATIC_DRAW);
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(indices), indices);
+
+    glBindVertexArray(0);
+
+    return vertex_array_object_id;
 }

@@ -174,7 +174,7 @@ void main()
     // Termo especular utilizando o modelo de iluminação de Blinn Phong
     vec3 blinn_phong_specular_term  = Ks*I*pow(dot(n, h), q);
 
-    
+
     vec4 object_distance = normalize(position_world - spotlight_position);
 
     
@@ -183,9 +183,9 @@ void main()
     if(dot(object_distance, spotlight_direction) > spotlight_opening)
     {
         if ( object_id == PLANE )    
-            color = DirtTexture * (lambert_diffuse_term + ambient_term + phong_specular_term);
+            color = DirtTexture * (lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
         else if ( object_id == COW )      
-            color = CowTexture * (lambert_diffuse_term + ambient_term + phong_specular_term);
+            color = CowTexture * (lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
     }
     else
     {
