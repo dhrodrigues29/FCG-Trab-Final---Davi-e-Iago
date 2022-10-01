@@ -1608,7 +1608,7 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
 
     snprintf(bufferBunnysInstructions1, 80, "Use the WASD keys to move");
     snprintf(bufferBunnysInstructions2, 80, "Use the mouse moviments to see around");
-    snprintf(bufferBunnysInstructions3, 80, "Press 'Space' to jump and 'Shift' to run");
+    snprintf(bufferBunnysInstructions3, 80, "Use 'Space' to jump and 'Shift' to run");
 
     ellapsed_frames += 1;
 
