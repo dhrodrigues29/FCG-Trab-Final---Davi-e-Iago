@@ -151,7 +151,7 @@ void MouseButtonCallback(GLFWwindow *window, int button, int action, int mods);
 void CursorPosCallback(GLFWwindow *window, double xpos, double ypos);
 
 // My Functions
-void DrawEnviroment();
+void DrawScene();
 glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<SceneObj>);
 std::vector<SceneObj> spawnBunnys();
 
@@ -246,6 +246,9 @@ float timeNow;
 float timeElapsed;
 float playingTime = 0;
 
+// random array
+int randomArr[NUMBER_OF_BUNNYS];
+
 std::vector<SceneObj> arrayOfBunnys = spawnBunnys();
 SceneObj myBunny = SceneObj(0, vec3(0.0f, 0.0f, 0.0f), true);
 
@@ -263,7 +266,7 @@ float initial_time = 0.0f;
 void GameMenu()
 {
 
-    glClearColor(0.5f, 1.60f, 2.50f, 0.0f);
+    glClearColor(0.49f, 1.60f, 2.50f, 0.0f);
 
     // "Pintamos" todos os pixels do framebuffer com a cor definida acima,
     // e também resetamos todos os pixels do Z-buffer (depth buffer).
@@ -304,7 +307,7 @@ void GameMenu()
     // Note que, no sistema de coordenadas da câmera, os planos near e far
     // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
     float nearplane = -0.1f;  // Posição do "near plane"
-    float farplane = -400.0f; // Posição do "far plane"
+    float farplane = -399.9f; // Posição do "far plane"
 
     if (g_UsePerspectiveProjection)
     {
@@ -335,7 +338,7 @@ void GameMenu()
     glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
 
     // Desenhamos a vaca em terceira pessoa
-    model = Matrix_Translate(0, 0.2f, 0) * Matrix_Scale(1.0, 2.0, 2.0);
+    model = Matrix_Translate(0, 0.2f, 0) * Matrix_Scale(0.99, 2.0, 2.0);
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, COW);
     DrawVirtualObject("cow");
@@ -464,6 +467,11 @@ int main(int argc, char *argv[])
     // Desenhamos os modelos dos coelhos
     int remainingBunnys = NUMBER_OF_BUNNYS;
 
+    // Vetor random
+    for (int i = 0; i < NUMBER_OF_BUNNYS; i++)
+    {
+        randomArr[i] = (rand() % 10);
+    }
 
     // Ficamos em loop, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
@@ -572,23 +580,14 @@ int main(int argc, char *argv[])
             glUniformMatrix4fv(view_uniform, 1, GL_FALSE, glm::value_ptr(view));
             glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
 
-            if (g_UseFirstPersonView)
-            {
 
-                // Desenhamos a vaca em primeira pessoa
-                model = Matrix_Translate(cameraPos.x, cameraPos.y - 1.5, cameraPos.z) * Matrix_Rotate_Y(g_CameraTheta - 1.55) * Matrix_Scale(1.0, 2.0, 2.0);
-                glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-                glUniform1i(object_id_uniform, COW);
-                DrawVirtualObject("cow");
-            }
-            else
-            {
-                // Desenhamos a vaca em terceira pessoa
-                model = Matrix_Translate(cameraPos.x + 3, cameraPos.y - 4.0, cameraPos.z + 5) * Matrix_Rotate_Y(g_CameraTheta - 1.55) * Matrix_Scale(1.0, 2.0, 2.0);
-                glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-                glUniform1i(object_id_uniform, COW);
-                DrawVirtualObject("cow");
-            }
+            // Desenhamos a vaca em primeira pessoa
+            model = Matrix_Translate(cameraPos.x, cameraPos.y - 1.5, cameraPos.z) * Matrix_Rotate_Y(g_CameraTheta - 1.55) * Matrix_Scale(1.0, 2.0, 2.0);
+            glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+            glUniform1i(object_id_uniform, COW);
+            DrawVirtualObject("cow");
+
+
 
             float delta = timeNow - initial_time;
             float t = delta;
@@ -605,9 +604,8 @@ int main(int argc, char *argv[])
 
             for (int i = 0; i < remainingBunnys; i++)
             {
-
-                arrayOfBunnys[i].position = (1-t)*(1-t)*(1-t)*arrayOfBunnys[i].p0 + 3*(1-t)*(1-t)*t*arrayOfBunnys[i].p1 + 3*(1-t)*t*t*arrayOfBunnys[i].p2 + t*t*t*arrayOfBunnys[i].p3;
-                model = Matrix_Translate(arrayOfBunnys[i].position.x, arrayOfBunnys[i].position.y, arrayOfBunnys[i].position.z) * Matrix_Scale(0.7, 0.7, 0.7) * Matrix_Rotate_Y(0.0) * Matrix_Rotate_Z(0.0);
+                arrayOfBunnys[i].position = (1-t)*(1-t)*(1-t)*arrayOfBunnys[i].p0 + ((randomArr[i])%2)*(1-t)*(1-t)*t*arrayOfBunnys[i].p1 + 3*(1-t)*t*t*arrayOfBunnys[i].p2 + t*t*t*arrayOfBunnys[i].p3;
+                model = Matrix_Translate(arrayOfBunnys[i].position.x, arrayOfBunnys[i].position.y, arrayOfBunnys[i].position.z) * Matrix_Scale(0.7, 0.7, 0.7) * Matrix_Rotate_Y(randomArr[i]) * Matrix_Rotate_Z(0.0);
                 glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
                 glUniform1i(object_id_uniform, BUNNY);
                 DrawVirtualObject("bunny");
@@ -635,7 +633,7 @@ int main(int argc, char *argv[])
         }
 
 
-        DrawEnviroment();
+        DrawScene();
 
         // Imprimimos na tela informação sobre o número de quadros renderizados
         // por segundo (frames per second).
@@ -647,9 +645,9 @@ int main(int argc, char *argv[])
         // chamada abaixo faz a troca dos buffers, mostrando para o usuário
         // tudo que foi renderizado pelas funções acima.
         // Veja o link: Veja o link: https://en.wikipedia.org/w/index.php?title=Multiple_buffering&oldid=793452829#Double_buffering_in_computer_graphics
-        
 
-        
+
+
         glfwSwapBuffers(window);
 
         // Verificamos com o sistema operacional se houve alguma interação do
@@ -1490,12 +1488,6 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
         g_ShowInfoText = !g_ShowInfoText;
     }
 
-    // Se o usuário apertar a tecla F, utilizamos a camera em primeira pessoa.
-    if (key == GLFW_KEY_Q && action == GLFW_PRESS)
-    {
-        g_UseFirstPersonView = !g_UseFirstPersonView;
-    }
-
     // Se o usuário apertar a tecla R, recarregamos os shaders dos arquivos "shader_fragment.glsl" e "shader_vertex.glsl".
     if (key == GLFW_KEY_R && action == GLFW_PRESS)
     {
@@ -1625,7 +1617,7 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
 
     snprintf(bufferBunnysWin, 80, "    You Won!!");
     snprintf(bufferBunnysWinTime, 80, "You catch all the Bunnys in %.0f seconds!", playingTime);
-    snprintf(bufferBunnysReplay, 80, "Press 'ESC' to exit or 'Enter' to play again!");
+    snprintf(bufferBunnysReplay, 80, "Press 'ESC' to exit!");
     snprintf(bufferBunnys, 50, "%d Remaining Bunnys", bunnysLeft);
     snprintf(bufferBunnysPlay, 80, "Catch all the bunnys by walking over them!");
 
@@ -1664,7 +1656,7 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
         {
             TextRendering_PrintString(window, bufferBunnysWin, -0.45 + lineheight, 15*lineheight, 2.5f);
             TextRendering_PrintString(window, bufferBunnysWinTime, -0.68 + lineheight, 13*lineheight, 1.5f);
-            TextRendering_PrintString(window, bufferBunnysReplay, -0.75 + lineheight, 11*lineheight, 1.5f);
+            TextRendering_PrintString(window, bufferBunnysReplay, -0.45 + lineheight, 11*lineheight, 1.5f);
         } else {
             TextRendering_PrintString(window, bufferBunnysPlay, -0.75 + lineheight, 17*lineheight, 1.5f);
             TextRendering_PrintString(window, bufferBunnys, -0.45 + lineheight, 14*lineheight, 2.0f);
@@ -1677,7 +1669,7 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
 
 }
 
-void DrawEnviroment()
+void DrawScene()
 {
     glm::mat4 model = Matrix_Identity();
     model = Matrix_Translate(0.0f, -1.0f, 0.0f) * Matrix_Scale(PLANE_SIZE_X, 1.0f, PLANE_SIZE_Z);
@@ -1966,10 +1958,10 @@ GLuint BuildTriangles()
     glEnableVertexAttribArray(location);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    
+
     GLubyte indices[] = { 0,1,2, 0,2,3, 0,3,4, 0,4,5, 0,5,6 ,0,6,7, 0,7,8, 0,8,9 ,0,9,10, 0,10,11, 0,11,12, 0,12,13 ,0,13,14 ,0,14,15 ,0,15,16, 0,16,17 }; // GLubyte: valores entre 0 e 255 (8 bits sem sinal).
 
-    
+
     GLuint indices_id;
     glGenBuffers(1, &indices_id);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices_id);

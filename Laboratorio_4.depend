@@ -3850,7 +3850,7 @@
 	<inttypes.h>
 	<stdint.h>
 
-1664632812 source:c:\users\davi\desktop\fcg-trab-final-davi-e-iago\src\main.cpp
+1664750254 source:c:\users\davi\desktop\fcg-trab-final-davi-e-iago\src\main.cpp
 	<cmath>
 	<cstdio>
 	<cstdlib>
@@ -4754,12 +4754,12 @@
 	<glm/vec4.hpp>
 	<glm/gtc/matrix_transform.hpp>
 
-1663754957 c:\users\davi\desktop\fcg-trab-final-davi-e-iago\src\sceneobjs.cpp
+1664659031 c:\users\davi\desktop\fcg-trab-final-davi-e-iago\src\sceneobjs.cpp
 	<cstdio>
 	<GLFW/glfw3.h>
 	"sceneObj.hpp"
 
-1663755150 c:\users\davi\desktop\fcg-trab-final-davi-e-iago\include\sceneobj.hpp
+1664659031 c:\users\davi\desktop\fcg-trab-final-davi-e-iago\include\sceneobj.hpp
 	<glm/mat4x4.hpp>
 	<glm/vec4.hpp>
 	<glm/gtc/type_ptr.hpp>
