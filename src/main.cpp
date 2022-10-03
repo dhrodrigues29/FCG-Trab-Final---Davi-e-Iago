@@ -248,6 +248,7 @@ float playingTime = 0;
 
 // random array
 int randomArr[NUMBER_OF_BUNNYS];
+int newRandomArr[NUMBER_OF_BUNNYS-1];
 
 std::vector<SceneObj> arrayOfBunnys = spawnBunnys();
 SceneObj myBunny = SceneObj(0, vec3(0.0f, 0.0f, 0.0f), true);
@@ -376,7 +377,7 @@ int main(int argc, char *argv[])
     // Criamos uma janela do sistema operacional, com 800 colunas e 600 linhas
     // de pixels, e com título "INF01047 ...".
     GLFWwindow *window;
-    window = glfwCreateWindow(800, 600, "Bunny Hunter", NULL, NULL);
+    window = glfwCreateWindow(800, 600, "Bunny Hunter Cow", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -591,9 +592,9 @@ int main(int argc, char *argv[])
 
             float delta = timeNow - initial_time;
             float t = delta;
-
+            
             if(delta >= 1.0f && delta < 2.0f) {
-
+                
                 t = 2.0f - delta;
 
             }else if(delta >= 2.0f) {
@@ -602,10 +603,15 @@ int main(int argc, char *argv[])
 
             }
 
+            if (t > 1.0) 
+            {
+                t = 0.0;
+            }
+
             for (int i = 0; i < remainingBunnys; i++)
             {
-                arrayOfBunnys[i].position = (1-t)*(1-t)*(1-t)*arrayOfBunnys[i].p0 + ((randomArr[i])%2)*(1-t)*(1-t)*t*arrayOfBunnys[i].p1 + 3*(1-t)*t*t*arrayOfBunnys[i].p2 + t*t*t*arrayOfBunnys[i].p3;
-                model = Matrix_Translate(arrayOfBunnys[i].position.x, arrayOfBunnys[i].position.y, arrayOfBunnys[i].position.z) * Matrix_Scale(0.7, 0.7, 0.7) * Matrix_Rotate_Y(randomArr[i]) * Matrix_Rotate_Z(0.0);
+                arrayOfBunnys[i].position = (1-t)*(1-t)*arrayOfBunnys[i].p0 + 3*(1-t)*(1-t)*t*arrayOfBunnys[i].p1 + 3*(1-t)*t*t*arrayOfBunnys[i].p2 + t*t*t*arrayOfBunnys[i].p3;
+                model = Matrix_Translate(arrayOfBunnys[i].position.x, arrayOfBunnys[i].position.y, arrayOfBunnys[i].position.z) * Matrix_Scale(0.7, 0.7, 0.7) * Matrix_Rotate_Y(arrayOfBunnys[i].position.x) * Matrix_Rotate_Z(0.0);
                 glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
                 glUniform1i(object_id_uniform, BUNNY);
                 DrawVirtualObject("bunny");
@@ -674,8 +680,8 @@ std::vector<SceneObj> spawnBunnys()
     vec3 posBunny = vec3(0.0f, 0.0f, 0.0f);
     SceneObj newBunny(0, posBunny);
     std::vector<SceneObj> arrayOfBunnys(NUMBER_OF_BUNNYS);
-    int plane_size_x = PLANE_SIZE_X - 2;
-    int plane_size_z = PLANE_SIZE_Z - 2;
+    int plane_size_x = PLANE_SIZE_X - 4;
+    int plane_size_z = PLANE_SIZE_Z - 4;
 
     std::random_device seeder;
     std::mt19937 engine(seeder());
@@ -1608,6 +1614,15 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
     static char buffer[20] = "?? fps";
     static int numchars = 7;
 
+    // Variaveis para printar as infos do menu
+    static char bufferBunnysTitle[50];
+    static char bufferBunnysInstruction0[50];
+    static char bufferBunnysStart[50];
+
+    snprintf(bufferBunnysTitle, 80, "Bunny Hunter Cow!");
+    snprintf(bufferBunnysInstruction0, 80, "Use the keyboard left and right arrows to choose your cow!");
+    snprintf(bufferBunnysStart, 80, "Press 'Enter' to start!");
+
     // Variaveis para printar os coelhos restantes e tempo corrido
     static char bufferBunnys[50];
     static char bufferBunnysPlay[80];
@@ -1616,10 +1631,10 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
     static char bufferBunnysReplay[80];
 
     snprintf(bufferBunnysWin, 80, "    You Won!!");
-    snprintf(bufferBunnysWinTime, 80, "You catch all the Bunnys in %.0f seconds!", playingTime);
+    snprintf(bufferBunnysWinTime, 80, "You hunt all the Bunnys in %.0f seconds!", playingTime);
     snprintf(bufferBunnysReplay, 80, "Press 'ESC' to exit!");
     snprintf(bufferBunnys, 50, "%d Remaining Bunnys", bunnysLeft);
-    snprintf(bufferBunnysPlay, 80, "Catch all the bunnys by walking over them!");
+    snprintf(bufferBunnysPlay, 80, "Hunt all the bunnys by walking over them!");
 
     static char bufferBunnysInstructions1[80];
     static char bufferBunnysInstructions2[80];
@@ -1665,6 +1680,10 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
             TextRendering_PrintString(window, bufferBunnysInstructions3, -1.05 + lineheight, 8*lineheight, 1.0f);
         }
 
+    } else {
+        TextRendering_PrintString(window, bufferBunnysTitle, -0.55 + lineheight, 16*lineheight, 2.8f);
+        TextRendering_PrintString(window, bufferBunnysInstruction0, -0.90 + lineheight, -14*lineheight, 1.5f);
+        TextRendering_PrintString(window, bufferBunnysStart, -0.45 + lineheight, -16*lineheight, 1.5f);
     }
 
 }
