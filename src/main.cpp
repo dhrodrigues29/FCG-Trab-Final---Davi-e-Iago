@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <ctime>
 
+
 // Headers das bibliotecas OpenGL
 #include <glad/glad.h>  // Criação de contexto OpenGL 3.3
 #include <GLFW/glfw3.h> // Criação de janelas do sistema operacional
@@ -339,7 +340,7 @@ void GameMenu()
     glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
 
     // Desenhamos a vaca em terceira pessoa
-    model = Matrix_Translate(0, 0.2f, 0) * Matrix_Scale(0.99, 2.0, 2.0);
+    model = Matrix_Translate(0, 0.2f, 0) * Matrix_Scale(1.5, 2.0, 2.0);
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, COW);
     DrawVirtualObject("cow");
