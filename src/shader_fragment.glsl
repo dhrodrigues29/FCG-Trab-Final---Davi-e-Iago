@@ -74,9 +74,6 @@ void main()
     // Vetor que define o sentido da reflexão especular ideal.
     vec4 r = -l + 2*n*dot(n,l);
 
-    // Vetor que define blinn-phong.
-    vec4 h = normalize(v + l);
-
     // Coordenadas de textura U e V
     float U = 0.0;
     float V = 0.0;
@@ -142,9 +139,9 @@ void main()
     }
 
    // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
-    vec3 DirtTexture = texture(TextureImage0, vec2(U,V)).rgb;
-    vec3 FurTexture = texture(TextureImage1, vec2(U,V)).rgb;
-    vec3 CowTexture = texture(colocarTexturaAqui, vec2(U,V)).rgb;
+    vec3 dirtTexture = texture(TextureImage0, vec2(U,V)).rgb;
+    vec3 furTexture = texture(TextureImage1, vec2(U,V)).rgb;
+    vec3 cowTexture = texture(colocarTexturaAqui, vec2(U,V)).rgb;
     
     // Espectro da fonte de iluminação
     vec3 I = vec3(1.0,1.0,1.0); 
@@ -161,19 +158,15 @@ void main()
     // Termo especular utilizando o modelo de iluminação de Phong
     vec3 phong_specular_term  = Ks * I * pow(max(0, dot(r,v)), q); 
     
-    // Termo especular utilizando o modelo de iluminação de Blinn Phong
-    vec3 blinn_phong_specular_term  = Ks * I * pow(dot(n, h), q);
-
-    
     //Atribuição de cores
     if(object_id == BUNNY)    
-        color = FurTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
+        color = furTexture * (gouraud_color);
     else 
         if (object_id == PLANE)    
-        color = DirtTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
+        color = dirtTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
     else 
         if (object_id == COW)      
-        color = CowTexture*(lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
+        color = cowTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
 
     color = pow(color, vec3(1.0,1.0,1.0)/2.2);
 

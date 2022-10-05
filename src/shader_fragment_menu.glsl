@@ -37,7 +37,7 @@ uniform vec4 bbox_max;
 uniform sampler2D TextureImage0; //BUNNY
 uniform sampler2D TextureImage1; //PLANE
 uniform sampler2D TextureImage2; //COW
-uniform sampler2D TextureImage3; //COW
+uniform sampler2D TextureImage3; //GRASS
 uniform sampler2D TextureImage4; //COW
 
 
@@ -129,9 +129,8 @@ void main()
         V = (position_model.y - miny) / (maxy - miny);
     }
 
-    vec3 DirtTexture = texture(TextureImage0, vec2(U,V)).rgb;
-    vec3 FurTexture = texture(TextureImage1, vec2(U,V)).rgb;
-    vec3 CowTexture = texture(colocarTexturaAqui, vec2(U,V)).rgb;
+    vec3 planeTexture = texture(TextureImage0, vec2(U,V)).rgb;
+    vec3 cowTexture = texture(colocarTexturaAqui, vec2(U,V)).rgb;
     
     // Espectro da fonte de iluminação
     vec3 I = vec3(1.0,1.0,1.0); 
@@ -162,16 +161,16 @@ void main()
     if(dot(object_distance, spotlight_direction) > spotlight_opening)
     {
         if ( object_id == PLANE )    
-            color = DirtTexture * (lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
+            color = planeTexture * (lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
         else if ( object_id == COW )      
-            color = CowTexture * (lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
+            color = cowTexture * (lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
     }
     else
     {
         if ( object_id == PLANE )    
-            color = DirtTexture * (ambient_term);
+            color = planeTexture * (ambient_term);
         else if ( object_id == COW )      
-            color = CowTexture * (ambient_term);
+            color = cowTexture * (ambient_term);
     }
 
 

@@ -421,13 +421,12 @@ int main(int argc, char *argv[])
     // para renderização. Veja slides 176-196 do documento Aula_03_Rendering_Pipeline_Grafico.pdf.
     //
     LoadShadersFromFiles();
-
     // Carregamos duas imagens para serem utilizadas como textura
-    LoadTextureImage("../../data/dirt.jpg"); // TextureImage0
-
+    LoadTextureImage("../../data/campo2.jpg"); // TextureImage0
     // Textura do Personagem
     LoadTextureImage("../../data/fur.jpg"); // TextureImage1
     LoadTextureImage("../../data/cow.jpg"); // TextureImage2
+
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel cowModel("../../data/cow.obj");
@@ -864,8 +863,6 @@ void LoadTextureImage(const char *filename)
     stbi_image_free(data);
 
     g_NumLoadedTextures += 1;
-
-    std::cout << g_NumLoadedTextures << std::endl;
 }
 
 // Função que desenha um objeto armazenado em g_VirtualScene. Veja definição
