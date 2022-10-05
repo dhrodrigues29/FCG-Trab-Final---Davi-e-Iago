@@ -5912,7 +5912,7 @@
 	<inttypes.h>
 	<stdint.h>
 
-1664993889 source:d:\fcg-trab-final-davi-e-iago\src\main.cpp
+1664998663 source:d:\fcg-trab-final-davi-e-iago\src\main.cpp
 	<cmath>
 	<cstdio>
 	<cstdlib>
@@ -5937,7 +5937,7 @@
 	"utils.h"
 	"matrices.h"
 	"collisions.cpp"
-	"sceneObjs.cpp"
+	"GameObject.cpp"
 	<array>
 	<random>
 
@@ -6892,12 +6892,12 @@
 
 1664400432 d:\fcg-trab-final-davi-e-iago\include\glm\simd\integer.h
 
-1664990305 d:\fcg-trab-final-davi-e-iago\src\sceneobjs.cpp
+1664994889 d:\fcg-trab-final-davi-e-iago\src\sceneobjs.cpp
 	<cstdio>
 	<GLFW/glfw3.h>
 	"sceneObj.hpp"
 
-1664990305 d:\fcg-trab-final-davi-e-iago\include\sceneobj.hpp
+1664994893 d:\fcg-trab-final-davi-e-iago\include\sceneobj.hpp
 	<glm/mat4x4.hpp>
 	<glm/vec4.hpp>
 	<glm/gtc/type_ptr.hpp>
@@ -6917,4 +6917,14 @@
 
 1664400432 source:d:\fcg-trab-final-davi-e-iago\src\tiny_obj_loader.cpp
 	"tiny_obj_loader.h"
+
+1664995788 d:\fcg-trab-final-davi-e-iago\src\gameobject.cpp
+	<cstdio>
+	<GLFW/glfw3.h>
+	"../include/GameObject.hpp"
+
+1664995793 d:\fcg-trab-final-davi-e-iago\include\gameobject.hpp
+	<glm/mat4x4.hpp>
+	<glm/vec4.hpp>
+	<glm/gtc/type_ptr.hpp>
 

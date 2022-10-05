@@ -52,7 +52,7 @@
 #include "utils.h"
 #include "matrices.h"
 #include "collisions.cpp"
-#include "sceneObjs.cpp"
+#include "GameObject.cpp"
 
 #include <array>
 #include <random>
@@ -60,6 +60,7 @@
 #define BUNNY 1
 #define PLANE 2
 #define COW 3
+#define SUN 4
 
 #define PI 3.14159265359
 #define NUMBER_OF_BUNNYS 10
@@ -153,12 +154,12 @@ void CursorPosCallback(GLFWwindow *window, double xpos, double ypos);
 
 // My Functions
 void DrawScene();
-glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<SceneObj>);
-std::vector<SceneObj> spawnBunnys();
+glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>);
+std::vector<GameObject> spawnBunnys();
 
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
-struct SceneObject
+struct GameObjectect
 {
     std::string name;              // Nome do objeto
     size_t first_index;            // Índice do primeiro vértice dentro do vetor indices[] definido em BuildTrianglesAndAddToVirtualScene()
@@ -175,7 +176,7 @@ struct SceneObject
 // (map).  Veja dentro da função BuildTrianglesAndAddToVirtualScene() como que são incluídos
 // objetos dentro da variável g_VirtualScene, e veja na função main() como
 // estes são acessados.
-std::map<std::string, SceneObject> g_VirtualScene;
+std::map<std::string, GameObjectect> g_VirtualScene;
 
 // Pilha que guardará as matrizes de modelagem.
 std::stack<glm::mat4> g_MatrixStack;
@@ -251,8 +252,7 @@ float playingTime = 0;
 int randomArr[NUMBER_OF_BUNNYS];
 int newRandomArr[NUMBER_OF_BUNNYS-1];
 
-std::vector<SceneObj> arrayOfBunnys = spawnBunnys();
-SceneObj myBunny = SceneObj(0, vec3(0.0f, 0.0f, 0.0f), true);
+std::vector<GameObject> arrayOfBunnys = spawnBunnys();
 
 bool isOpenMenu = true;
 std::vector<std::string> cowOptionsPath = {"TextureImage1", "TextureImage2"};
@@ -264,6 +264,16 @@ std::string shaderFragmentToLoad = "../../src/shader_fragment_menu.glsl";
 //Variaveis para aplicar curvas de bezier
 bool return_to_start = false;
 float initial_time = 0.0f;
+
+void RenderSun() {
+
+    glm::mat4 model = Matrix_Identity();
+    model = Matrix_Translate(30.0f, 10.0f, 0.0f);
+    glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+    glUniform1i(object_id_uniform, SUN);
+    DrawVirtualObject("sphere");
+
+}
 
 void GameMenu()
 {
@@ -345,6 +355,8 @@ void GameMenu()
     glUniform1i(object_id_uniform, COW);
     DrawVirtualObject("cow");
 }
+
+
 
 int main(int argc, char *argv[])
 {
@@ -441,6 +453,11 @@ int main(int argc, char *argv[])
     ComputeNormals(&planemodel);
     BuildTrianglesAndAddToVirtualScene(&planemodel);
 
+    ObjModel spheremodel("../../data/sphere.obj");
+    ComputeNormals(&spheremodel);
+    BuildTrianglesAndAddToVirtualScene(&spheremodel);
+
+
     if (argc > 1)
     {
         ObjModel model(argv[1]);
@@ -499,10 +516,8 @@ int main(int argc, char *argv[])
                 isNight = !isNight;
             }
 
-            if (isNight)
-                glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-            else
-                glClearColor(0.5f, 1.60f, 2.50f, 0.0f);
+
+            glClearColor(0.5f, 1.60f, 2.50f, 0.0f);
 
             // "Pintamos" todos os pixels do framebuffer com a cor definida acima,
             // e também resetamos todos os pixels do Z-buffer (depth buffer).
@@ -592,9 +607,9 @@ int main(int argc, char *argv[])
 
             float delta = timeNow - initial_time;
             float t = delta;
-            
+
             if(delta >= 1.0f && delta < 2.0f) {
-                
+
                 t = 2.0f - delta;
 
             }else if(delta >= 2.0f) {
@@ -603,7 +618,7 @@ int main(int argc, char *argv[])
 
             }
 
-            if (t > 1.0) 
+            if (t > 1.0)
             {
                 t = 0.0;
             }
@@ -621,8 +636,7 @@ int main(int argc, char *argv[])
             // Colision cow and bunny
                 for (int i = 0; i < remainingBunnys; i++)
                 {
-                    if (arrayOfBunnys[i].isAlive)
-                    {
+
                         if (cubeOnCubeCollision(cameraPos, arrayOfBunnys[i].position))
                         {
                             arrayOfBunnys.erase(arrayOfBunnys.begin() + i);
@@ -632,9 +646,10 @@ int main(int argc, char *argv[])
                             {
                                 playingTime = (float)glfwGetTime() - beginTime;
                             }
-                        }
                     }
                 }
+
+                RenderSun();
 
         }
 
@@ -666,20 +681,20 @@ int main(int argc, char *argv[])
     // Finalizamos o uso dos recursos do sistema operacional
     glfwTerminate();
 
-    // Fim do programa
+    // sFim do programa
     return 0;
 }
 
 // Coloca coelhos aleatórias pelo mapa.
 // As coelhos são colocadas sempre dentro dos limites do mapa.
 // Além disso são feitos teste de colisão, para não colocar duas coelhos no mesmo lugar
-std::vector<SceneObj> spawnBunnys()
+std::vector<GameObject> spawnBunnys()
 {
     float posX;
     float posZ;
     vec3 posBunny = vec3(0.0f, 0.0f, 0.0f);
-    SceneObj newBunny(0, posBunny);
-    std::vector<SceneObj> arrayOfBunnys(NUMBER_OF_BUNNYS);
+    GameObject newBunny(posBunny);
+    std::vector<GameObject> arrayOfBunnys(NUMBER_OF_BUNNYS);
     int plane_size_x = PLANE_SIZE_X - 4;
     int plane_size_z = PLANE_SIZE_Z - 4;
 
@@ -692,11 +707,10 @@ std::vector<SceneObj> spawnBunnys()
     for (int i = 0; i < NUMBER_OF_BUNNYS; i++)
     {
 
-        // rand position to put the new cow
+        // rand position to put the new bunny
         posX = genX(engine);
         posZ = genZ(engine);
         posBunny = vec3(posX, -0.3, posZ);
-        newBunny.id = i;
         newBunny.position = posBunny;
         arrayOfBunnys[i] = newBunny;
         newBunny.setControlPoints();
@@ -706,12 +720,12 @@ std::vector<SceneObj> spawnBunnys()
     return arrayOfBunnys;
 }
 
-glm::vec4 NextLookAtCamerPosition(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<SceneObj>)
+glm::vec4 NextLookAtCamerPosition(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>)
 {
 }
 
 // Pega a próxima posição do jogador, fazendo testes de colisão com a parede e com os animais distribuídos pelo mapa.
-glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<SceneObj>)
+glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>)
 {
     glm::vec4 newCameraPos = cameraPos;
     glm::vec4 auxCameraPos = cameraPos;
@@ -1109,7 +1123,7 @@ void BuildTrianglesAndAddToVirtualScene(ObjModel *model)
 
         size_t last_index = indices.size() - 1;
 
-        SceneObject theobject;
+        GameObjectect theobject;
         theobject.name = model->shapes[shape].name;
         theobject.first_index = first_index;                  // Primeiro índice
         theobject.num_indices = last_index - first_index + 1; // Número de indices
