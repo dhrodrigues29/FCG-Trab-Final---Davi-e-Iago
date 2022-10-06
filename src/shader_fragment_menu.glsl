@@ -37,7 +37,7 @@ uniform vec4 bbox_max;
 uniform sampler2D TextureImage0; //BUNNY
 uniform sampler2D TextureImage1; //PLANE
 uniform sampler2D TextureImage2; //COW
-uniform sampler2D TextureImage3; //GRASS
+uniform sampler2D TextureImage3; //GRASS - dirt
 uniform sampler2D TextureImage4; //COW
 
 
@@ -98,8 +98,8 @@ void main()
     if ( object_id == PLANE )
     {
         // Coordenadas de textura do plano
-        U = texcoords.x*8;
-        V = texcoords.y*8;
+        U = texcoords.x*16;
+        V = texcoords.y*16;
 
        // Propriedades espectrais do plano
         Kd = vec3(0.2, 0.2, 0.2);
