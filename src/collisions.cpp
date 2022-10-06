@@ -4,8 +4,7 @@
 #include <iostream>
 #include <glm/glm.hpp>
 
-#define PLANE_SIZE_X 20
-#define PLANE_SIZE_Z 20
+#define PLANE_SIZE 20
 
 //Colisão Cubo-Cubo
 bool cubeOnCubeCollision(glm::vec3 cameraPos, glm::vec3 bunnyPosition) {
@@ -33,7 +32,7 @@ bool cubeOnPlaneCollision(glm::vec3 cameraPos, glm::vec3 planePosition) {
 
     //Seta o teto para comparar no pulo
     //glm::vec3 planePosition = glm::vec3(0.0f, 3.0f, 0.0f);
-    glm::vec3 planeSize = glm::vec3(PLANE_SIZE_X, 0.0f, PLANE_SIZE_Z);
+    glm::vec3 planeSize = glm::vec3(PLANE_SIZE, 0.0f, PLANE_SIZE);
 
     if(fabs(cameraPos.x + camSize.x) >= planePosition.x && planePosition.x + planeSize.x >= cameraPos.x &&
         cameraPos.y + camSize.y >= planePosition.y && planePosition.y + planeSize.y >= cameraPos.y &&

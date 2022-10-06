@@ -56,11 +56,11 @@
 #include <array>
 #include <random>
 
-#define BUNNY 1
-#define PLANE 2
-#define COW 3
-#define SUN 4
-#define WALL 5
+#define BUNNY   1
+#define PLANE   2
+#define COW     3
+#define SUN     4
+#define WALL    5
 
 #define PI 3.14159265359
 #define NUMBER_OF_BUNNYS 10
@@ -155,11 +155,6 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mode
 void MouseButtonCallback(GLFWwindow *window, int button, int action, int mods);
 void CursorPosCallback(GLFWwindow *window, double xpos, double ypos);
 
-// My Functions
-void RenderPlane();
-glm::vec4 MoveCow(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>);
-std::vector<GameObject> spawnBunnys();
-
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
 struct GameObjectect
@@ -206,14 +201,6 @@ float g_CameraTheta = 0.0f;    // Ângulo no plano ZX em relação ao eixo Z
 float g_CameraPhi = 0.0f;      // Ângulo em relação ao eixo Y
 float g_CameraDistance = 3.5f; // Distância da câmera para a origem
 
-// Variáveis que controlam rotação do antebraço
-float g_ForearmAngleZ = 0.0f;
-float g_ForearmAngleX = 0.0f;
-
-// Variáveis que controlam translação do torso
-float g_TorsoPositionX = 0.0f;
-float g_TorsoPositionY = 0.0f;
-
 // Variável que controla o tipo de projeção utilizada: perspectiva ou ortográfica.
 bool g_UsePerspectiveProjection = true;
 
@@ -237,14 +224,13 @@ GLint bbox_max_uniform;
 
 //Variaveis iniciais da camera
 glm::vec4 firstCameraPos = glm::vec4(1.0f, 1.0f, -4.0f, 1.0f);
-glm::vec4 camera_lookat_l = glm::vec4(1.0f, 1.0f, -4.0f, 1.0f);
+glm::vec4 camerLookAt = glm::vec4(1.0f, 1.0f, -4.0f, 1.0f);
 glm::vec4 cameraPos = firstCameraPos;
+glm::vec4 cameraTarget;
 
 // Número de texturas carregadas pela função LoadTextureImage()
 GLuint g_NumLoadedTextures = 0;
 
-// Outros estados
-glm::vec4 cameraTarget;
 
 float oldTime;
 float beginTime;
@@ -252,17 +238,35 @@ float timeNow;
 float timeElapsed;
 float playingTime = 0;
 
-std::vector<GameObject> arrayOfBunnys = spawnBunnys();
+std::vector<GameObject> arrayOfBunnys = generateBunnysOnTheMap();
 
 bool isOpenMenu = true;
-std::vector<std::string> cowOptionsPath = {"TextureImage1", "TextureImage2", "TextureImage3"};
+bool isEndGame = false;
 int cowOptionsIndex = 0;
+std::vector<std::string> cowOptionsPath = {"TextureImage1", "TextureImage2", "TextureImage3"};
 std::string chosenCow = cowOptionsPath[cowOptionsIndex];
 std::string shaderFragmentToLoad = SHADER_FRAGMENT_MENU;
 
 // Variaveis para aplicar curvas de bezier
 bool return_to_start = false;
 float initial_time = 0.0f;
+
+//Declaracao de funcoes
+glm::vec4 MoveCow(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>);
+std::vector<GameObject> generateBunnysOnTheMap();
+void RenderPlane();
+void RenderSun();
+void GameMenu();
+int RunGame(int remainingBunnys);
+
+void RenderPlane()
+{
+    glm::mat4 model = Matrix_Identity();
+    model = Matrix_Translate(0.0f, -1.0f, 0.0f) * Matrix_Scale(PLANE_SIZE, 1.0f, PLANE_SIZE);
+    glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+    glUniform1i(object_id_uniform, PLANE);
+    DrawVirtualObject("plane");
+}
 
 void RenderSun()
 {
@@ -305,8 +309,8 @@ void GameMenu()
     }
 
     glm::vec4 camera_position_c = glm::vec4(x, y, z, 1.0f);             // Ponto "c", centro da câmera
-    glm::vec4 camera_lookat_l = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);      // Ponto "l", para onde a câmera (look-at) estará sempre olhando
-    glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
+    glm::vec4 camerLookAt = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);      // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+    glm::vec4 camera_view_vector = camerLookAt - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
     glm::vec4 camera_up_vector = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);     // Vetor "up" fixado para apontar para o "céu" (eito Y global)
 
     // Computamos a matriz "View" utilizando os parâmetros da câmera para
@@ -318,7 +322,7 @@ void GameMenu()
 
     // Note que, no sistema de coordenadas da câmera, os planos near e far
     // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
-    float nearplane = -0.1f;  // Posição do "near plane"
+    float nearplane = -0.01f;  // Posição do "near plane"
     float farplane = -399.9f; // Posição do "far plane"
 
     if (g_UsePerspectiveProjection)
@@ -355,8 +359,6 @@ void GameMenu()
     glUniform1i(object_id_uniform, COW);
     DrawVirtualObject("cow");
 }
-
-bool isEndGame = false;
 
 // Essa função roda o jogo e retorna a quantidade de bunnys restante
 int RunGame(int remainingBunnys)
@@ -642,29 +644,23 @@ int main(int argc, char *argv[])
 }
 
 //Cria coelhos aleatórios dentro do mapa de jogo.
-std::vector<GameObject> spawnBunnys()
+std::vector<GameObject> generateBunnysOnTheMap()
 {
-    float posX;
-    float posZ;
     vec3 posBunny = vec3(0.0f, 0.0f, 0.0f);
     GameObject newBunny(posBunny);
     std::vector<GameObject> arrayOfBunnys(NUMBER_OF_BUNNYS);
-    int plane_size_x = PLANE_SIZE_X - 4;
-    int plane_size_z = PLANE_SIZE_Z - 4;
+    int max_bunny_pos = PLANE_SIZE - 4;
 
     std::random_device seeder;
     std::mt19937 engine(seeder());
-    std::uniform_int_distribution<int> genX(-plane_size_x, plane_size_x);
-
-    std::uniform_int_distribution<int> genZ(-plane_size_z, plane_size_z);
+    
+    std::uniform_int_distribution<int> xPos(-max_bunny_pos, max_bunny_pos);
+    std::uniform_int_distribution<int> zPos(-max_bunny_pos, max_bunny_pos);
 
     for (int i = 0; i < NUMBER_OF_BUNNYS; i++)
     {
 
-        // rand position to put the new bunny
-        posX = genX(engine);
-        posZ = genZ(engine);
-        posBunny = vec3(posX, -0.3, posZ);
+        posBunny = vec3(xPos(engine), -0.3, zPos(engine));
         newBunny.position = posBunny;
         arrayOfBunnys[i] = newBunny;
         newBunny.setControlPoints();
@@ -674,7 +670,7 @@ std::vector<GameObject> spawnBunnys()
 }
 
 bool checkIfNextPositionIsValid(float cameraPosOnThatCoord) {
-    return cameraPosOnThatCoord < -PLANE_SIZE_X + 1 || cameraPosOnThatCoord > PLANE_SIZE_Z - 1;
+    return cameraPosOnThatCoord < -PLANE_SIZE + 1 || cameraPosOnThatCoord > PLANE_SIZE - 1;
 }
 
 glm::vec4 getNewPosition(glm::vec4 cameraPos, glm::vec4 newPos) {
@@ -1644,15 +1640,6 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
         TextRendering_PrintString(window, bufferBunnysInstruction0, -0.90 + lineheight, -14 * lineheight, 1.5f);
         TextRendering_PrintString(window, bufferBunnysStart, -0.45 + lineheight, -16 * lineheight, 1.5f);
     }
-}
-
-void RenderPlane()
-{
-    glm::mat4 model = Matrix_Identity();
-    model = Matrix_Translate(0.0f, -1.0f, 0.0f) * Matrix_Scale(PLANE_SIZE_X, 1.0f, PLANE_SIZE_Z);
-    glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-    glUniform1i(object_id_uniform, PLANE);
-    DrawVirtualObject("plane");
 }
 
 // Função para debugging: imprime no terminal todas informações de um modelo

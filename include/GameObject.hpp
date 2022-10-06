@@ -3,8 +3,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #define CUBE_SIZE 0.8
 #define CUBE_SIZE_RABBIT 0.3
-#define PLANE_SIZE_X 20
-#define PLANE_SIZE_Z 20
+#define PLANE_SIZE 20
 
 
 using namespace glm;
