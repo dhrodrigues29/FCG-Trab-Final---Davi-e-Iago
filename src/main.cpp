@@ -13,7 +13,7 @@
 //  vira
 //    #include <cstdio> // Em C++
 //
-#define _USE_MATH_DEFINES //Para usar M_PI
+#define _USE_MATH_DEFINES // Para usar M_PI
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -30,7 +30,6 @@
 #include <stdexcept>
 #include <algorithm>
 #include <ctime>
-
 
 // Headers das bibliotecas OpenGL
 #include <glad/glad.h>  // Criação de contexto OpenGL 3.3
@@ -64,6 +63,9 @@
 
 #define PI 3.14159265359
 #define NUMBER_OF_BUNNYS 10
+
+#define SHADER_FRAGMENT_MENU "../../src/shader_fragment_menu.glsl"
+#define SHADER_FRAGMENT "../../src/shader_fragment.glsl"
 
 // Variáveis globais de movimentação
 bool w_Key_Pressed = false;
@@ -116,7 +118,7 @@ void PopMatrix(glm::mat4 &M);
 
 // Declaração de várias funções utilizadas em main().  Essas estão definidas
 // logo após a definição de main() neste arquivo.
-GLuint BuildTriangles(); // Constrói triângulos para renderização
+GLuint BuildTriangles();                                                     // Constrói triângulos para renderização
 void BuildTrianglesAndAddToVirtualScene(ObjModel *);                         // Constrói representação de um ObjModel como malha de triângulos para renderização
 void ComputeNormals(ObjModel *model);                                        // Computa normais de um ObjModel, caso não existam.
 void LoadShadersFromFiles();                                                 // Carrega os shaders de vértice e fragmento, criando um programa de GPU
@@ -250,7 +252,7 @@ float playingTime = 0;
 
 // random array
 int randomArr[NUMBER_OF_BUNNYS];
-int newRandomArr[NUMBER_OF_BUNNYS-1];
+int newRandomArr[NUMBER_OF_BUNNYS - 1];
 
 std::vector<GameObject> arrayOfBunnys = spawnBunnys();
 
@@ -258,21 +260,20 @@ bool isOpenMenu = true;
 std::vector<std::string> cowOptionsPath = {"TextureImage1", "TextureImage2"};
 int cowOptionsIndex = 0;
 std::string chosenCow = cowOptionsPath[cowOptionsIndex];
-std::string shaderFragmentToLoad = "../../src/shader_fragment_menu.glsl";
+std::string shaderFragmentToLoad = SHADER_FRAGMENT_MENU;
 
-
-//Variaveis para aplicar curvas de bezier
+// Variaveis para aplicar curvas de bezier
 bool return_to_start = false;
 float initial_time = 0.0f;
 
-void RenderSun() {
+void RenderSun()
+{
 
     glm::mat4 model = Matrix_Identity();
     model = Matrix_Translate(30.0f, 10.0f, 0.0f);
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, SUN);
     DrawVirtualObject("sphere");
-
 }
 
 void GameMenu()
@@ -356,7 +357,144 @@ void GameMenu()
     DrawVirtualObject("cow");
 }
 
+// Essa função roda o jogo e retorna a quantidade de bunnys restante
+int RunGame(int remainingBunnys)
+{
 
+    // Tempo de jogo
+    timeNow = (float)glfwGetTime();
+    timeElapsed = timeNow - oldTime;
+    oldTime = timeNow;
+
+    glClearColor(0.5f, 1.60f, 2.50f, 0.0f);
+
+    // "Pintamos" todos os pixels do framebuffer com a cor definida acima,
+    // e também resetamos todos os pixels do Z-buffer (depth buffer).
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Pedimos para a GPU utilizar o programa de GPU criado acima (contendo
+    // os shaders de vértice e fragmentos).
+    glUseProgram(program_id);
+
+    // Computamos a posição da câmera utilizando coordenadas esféricas.  As
+    // variáveis g_CameraDistance, g_CameraPhi, e g_CameraTheta são
+    // controladas pelo mouse do usuário. Veja as funções CursorPosCallback()
+    // e ScrollCallback().
+    float r = g_CameraDistance;
+    float y = r * sin(g_CameraPhi);
+    float z = r * cos(g_CameraPhi) * cos(g_CameraTheta);
+    float x = r * cos(g_CameraPhi) * sin(g_CameraTheta);
+
+    glm::mat4 view;
+
+    cameraTarget = glm::vec4(x, y, z, 0.0f);
+    glm::vec4 cameraOnEyesHeight = glm::vec4(x, 0.0f, z, 0.0f);
+    glm::vec4 genericUp = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+    glm::vec4 cameraRight = crossproduct(genericUp, cameraTarget);
+    glm::vec4 cameraUp = crossproduct(cameraTarget, cameraRight);
+
+    // Setting the cameraView based on the user choice
+    if (g_UseFirstPersonView)
+    {
+        cameraPos.y = camera_height;
+        cameraPos = GetNewCameraPos(cameraPos, cameraOnEyesHeight, cameraRight, arrayOfBunnys);
+    }
+    else
+    {
+        cameraPos.y = 4.0;
+        cameraPos = GetNewCameraPos(cameraPos, cameraOnEyesHeight, cameraRight, arrayOfBunnys);
+    }
+
+    // Computamos a matriz "View" utilizando os parâmetros da câmera para
+    // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
+    view = Matrix_Camera_View(cameraPos, cameraTarget, cameraUp);
+
+    // Agora computamos a matriz de Projeção.
+    glm::mat4 projection;
+
+    // Note que, no sistema de coordenadas da câmera, os planos near e far
+    // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
+    float nearplane = -0.1f;  // Posição do "near plane"
+    float farplane = -400.0f; // Posição do "far plane"
+
+    if (g_UsePerspectiveProjection)
+    {
+        // Projeção Perspectiva.
+        float field_of_view = PI / 3.0f;
+        projection = Matrix_Perspective(field_of_view, g_ScreenRatio, nearplane, farplane);
+    }
+    else
+    {
+        // Projeção Ortográfica.
+        float t = 1.5f * g_CameraDistance / 2.5f;
+        float b = -t;
+        float r = t * g_ScreenRatio;
+        float l = -r;
+
+        // Look at cow
+        projection = Matrix_Orthographic(l, r, b, t, nearplane, farplane);
+    }
+
+    // Transformação identidade de modelagem
+    glm::mat4 model = Matrix_Identity();
+
+    // Enviamos as matrizes "view" e "projection" para a placa de vídeo
+    // (GPU). Veja o arquivo "shader_vertex.glsl", onde estas são
+    // efetivamente aplicadas em todos os pontos.
+    glUniformMatrix4fv(view_uniform, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
+
+    // Desenhamos a vaca em primeira pessoa
+    model = Matrix_Translate(cameraPos.x, cameraPos.y - 1.5, cameraPos.z) * Matrix_Rotate_Y(g_CameraTheta - 1.55) * Matrix_Scale(1.0, 2.0, 2.0);
+    glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+    glUniform1i(object_id_uniform, COW);
+    DrawVirtualObject("cow");
+
+    float delta = timeNow - initial_time;
+    float t = delta;
+
+    if (delta >= 1.0f && delta < 2.0f)
+    {
+
+        t = 2.0f - delta;
+    }
+    else if (delta >= 2.0f)
+    {
+
+        initial_time = timeNow;
+    }
+
+    if (t > 1.0)
+    {
+        t = 0.0;
+    }
+
+    for (int i = 0; i < remainingBunnys; i++)
+    {
+        arrayOfBunnys[i].position = (1 - t) * (1 - t) * arrayOfBunnys[i].p0 + 3 * (1 - t) * (1 - t) * t * arrayOfBunnys[i].p1 + 3 * (1 - t) * t * t * arrayOfBunnys[i].p2 + t * t * t * arrayOfBunnys[i].p3;
+        model = Matrix_Translate(arrayOfBunnys[i].position.x, arrayOfBunnys[i].position.y, arrayOfBunnys[i].position.z) * Matrix_Scale(0.7, 0.7, 0.7) * Matrix_Rotate_Y(arrayOfBunnys[i].position.x) * Matrix_Rotate_Z(0.0);
+        glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+        glUniform1i(object_id_uniform, BUNNY);
+        DrawVirtualObject("bunny");
+    }
+
+    for (int i = 0; i < remainingBunnys; i++)
+    {
+
+        if (cubeOnCubeCollision(cameraPos, arrayOfBunnys[i].position))
+        {
+            arrayOfBunnys.erase(arrayOfBunnys.begin() + i);
+            remainingBunnys--;
+
+            if (remainingBunnys == 0)
+            {
+                playingTime = (float)glfwGetTime() - beginTime;
+            }
+        }
+    }
+
+    return remainingBunnys;
+}
 
 int main(int argc, char *argv[])
 {
@@ -378,10 +516,6 @@ int main(int argc, char *argv[])
     // Pedimos para utilizar OpenGL versão 3.3 (ou superior)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-
-    #ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    #endif
 
     // Pedimos para utilizar o perfil "core", isto é, utilizaremos somente as
     // funções modernas de OpenGL.
@@ -439,7 +573,6 @@ int main(int argc, char *argv[])
     LoadTextureImage("../../data/fur.jpg"); // TextureImage1
     LoadTextureImage("../../data/cow.jpg"); // TextureImage2
 
-
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel cowModel("../../data/cow.obj");
     ComputeNormals(&cowModel);
@@ -456,7 +589,6 @@ int main(int argc, char *argv[])
     ObjModel spheremodel("../../data/sphere.obj");
     ComputeNormals(&spheremodel);
     BuildTrianglesAndAddToVirtualScene(&spheremodel);
-
 
     if (argc > 1)
     {
@@ -478,12 +610,8 @@ int main(int argc, char *argv[])
     beginTime = (float)glfwGetTime();
     oldTime = beginTime;
 
-    // Isso pode ser usado ou não
-    bool isNight = false;
-    float lastColorTime = 20.0f;
-
     // Desenhamos os modelos dos coelhos
-    int remainingBunnys = NUMBER_OF_BUNNYS;
+    int remainingBunnys = 1;
 
     // Vetor random
     for (int i = 0; i < NUMBER_OF_BUNNYS; i++)
@@ -501,158 +629,17 @@ int main(int argc, char *argv[])
         }
         else
         {
-            // RunGame( lastColorTime, isNight, remainingBunnys);
+            remainingBunnys = RunGame(remainingBunnys);
 
-            // Tempo de jogo
-            timeNow = (float)glfwGetTime();
-            timeElapsed = timeNow - oldTime;
-            oldTime = timeNow;
-
-            // Isso pode ser usado ou não
-            //  Definimos a cor do céu como azul no dia e preto a noite
-            if (timeNow > lastColorTime)
+            if (remainingBunnys == 0)
             {
-                lastColorTime += 20.0f;
-                isNight = !isNight;
+
+                shaderFragmentToLoad = SHADER_FRAGMENT_MENU;
+                LoadShadersFromFiles();
+                isOpenMenu = true;
+                remainingBunnys = NUMBER_OF_BUNNYS;
             }
-
-
-            glClearColor(0.5f, 1.60f, 2.50f, 0.0f);
-
-            // "Pintamos" todos os pixels do framebuffer com a cor definida acima,
-            // e também resetamos todos os pixels do Z-buffer (depth buffer).
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-            // Pedimos para a GPU utilizar o programa de GPU criado acima (contendo
-            // os shaders de vértice e fragmentos).
-            glUseProgram(program_id);
-
-            // Computamos a posição da câmera utilizando coordenadas esféricas.  As
-            // variáveis g_CameraDistance, g_CameraPhi, e g_CameraTheta são
-            // controladas pelo mouse do usuário. Veja as funções CursorPosCallback()
-            // e ScrollCallback().
-            float r = g_CameraDistance;
-            float y = r * sin(g_CameraPhi);
-            float z = r * cos(g_CameraPhi) * cos(g_CameraTheta);
-            float x = r * cos(g_CameraPhi) * sin(g_CameraTheta);
-
-            glm::mat4 view;
-
-            cameraTarget = glm::vec4(x, y, z, 0.0f);
-            glm::vec4 cameraOnEyesHeight = glm::vec4(x, 0.0f, z, 0.0f);
-            glm::vec4 genericUp = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-            glm::vec4 cameraRight = crossproduct(genericUp, cameraTarget);
-            glm::vec4 cameraUp = crossproduct(cameraTarget, cameraRight);
-
-            // Setting the cameraView based on the user choice
-            if (g_UseFirstPersonView)
-            {
-                cameraPos.y = camera_height;
-                cameraPos = GetNewCameraPos(cameraPos, cameraOnEyesHeight, cameraRight, arrayOfBunnys);
-            }
-            else
-            {
-                cameraPos.y = 4.0;
-                cameraPos = GetNewCameraPos(cameraPos, cameraOnEyesHeight, cameraRight, arrayOfBunnys);
-            }
-
-            // Computamos a matriz "View" utilizando os parâmetros da câmera para
-            // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
-            view = Matrix_Camera_View(cameraPos, cameraTarget, cameraUp);
-
-            // Agora computamos a matriz de Projeção.
-            glm::mat4 projection;
-
-            // Note que, no sistema de coordenadas da câmera, os planos near e far
-            // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
-            float nearplane = -0.1f;  // Posição do "near plane"
-            float farplane = -400.0f; // Posição do "far plane"
-
-            if (g_UsePerspectiveProjection)
-            {
-                // Projeção Perspectiva.
-                float field_of_view = PI / 3.0f;
-                projection = Matrix_Perspective(field_of_view, g_ScreenRatio, nearplane, farplane);
-            }
-            else
-            {
-                // Projeção Ortográfica.
-                float t = 1.5f * g_CameraDistance / 2.5f;
-                float b = -t;
-                float r = t * g_ScreenRatio;
-                float l = -r;
-
-                // Look at cow
-
-                projection = Matrix_Orthographic(l, r, b, t, nearplane, farplane);
-            }
-
-            // Transformação identidade de modelagem
-            glm::mat4 model = Matrix_Identity();
-
-            // Enviamos as matrizes "view" e "projection" para a placa de vídeo
-            // (GPU). Veja o arquivo "shader_vertex.glsl", onde estas são
-            // efetivamente aplicadas em todos os pontos.
-            glUniformMatrix4fv(view_uniform, 1, GL_FALSE, glm::value_ptr(view));
-            glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
-
-
-            // Desenhamos a vaca em primeira pessoa
-            model = Matrix_Translate(cameraPos.x, cameraPos.y - 1.5, cameraPos.z) * Matrix_Rotate_Y(g_CameraTheta - 1.55) * Matrix_Scale(1.0, 2.0, 2.0);
-            glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-            glUniform1i(object_id_uniform, COW);
-            DrawVirtualObject("cow");
-
-
-
-            float delta = timeNow - initial_time;
-            float t = delta;
-
-            if(delta >= 1.0f && delta < 2.0f) {
-
-                t = 2.0f - delta;
-
-            }else if(delta >= 2.0f) {
-
-                initial_time = timeNow;
-
-            }
-
-            if (t > 1.0)
-            {
-                t = 0.0;
-            }
-
-            for (int i = 0; i < remainingBunnys; i++)
-            {
-                arrayOfBunnys[i].position = (1-t)*(1-t)*arrayOfBunnys[i].p0 + 3*(1-t)*(1-t)*t*arrayOfBunnys[i].p1 + 3*(1-t)*t*t*arrayOfBunnys[i].p2 + t*t*t*arrayOfBunnys[i].p3;
-                model = Matrix_Translate(arrayOfBunnys[i].position.x, arrayOfBunnys[i].position.y, arrayOfBunnys[i].position.z) * Matrix_Scale(0.7, 0.7, 0.7) * Matrix_Rotate_Y(arrayOfBunnys[i].position.x) * Matrix_Rotate_Z(0.0);
-                glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-                glUniform1i(object_id_uniform, BUNNY);
-                DrawVirtualObject("bunny");
-            }
-
-
-            // Colision cow and bunny
-                for (int i = 0; i < remainingBunnys; i++)
-                {
-
-                        if (cubeOnCubeCollision(cameraPos, arrayOfBunnys[i].position))
-                        {
-                            arrayOfBunnys.erase(arrayOfBunnys.begin() + i);
-                            remainingBunnys--;
-
-                            if (remainingBunnys == 0)
-                            {
-                                playingTime = (float)glfwGetTime() - beginTime;
-                            }
-                    }
-                }
-
-                RenderSun();
-
         }
-
 
         DrawScene();
 
@@ -666,9 +653,6 @@ int main(int argc, char *argv[])
         // chamada abaixo faz a troca dos buffers, mostrando para o usuário
         // tudo que foi renderizado pelas funções acima.
         // Veja o link: Veja o link: https://en.wikipedia.org/w/index.php?title=Multiple_buffering&oldid=793452829#Double_buffering_in_computer_graphics
-
-
-
         glfwSwapBuffers(window);
 
         // Verificamos com o sistema operacional se houve alguma interação do
@@ -681,7 +665,6 @@ int main(int argc, char *argv[])
     // Finalizamos o uso dos recursos do sistema operacional
     glfwTerminate();
 
-    // sFim do programa
     return 0;
 }
 
@@ -714,7 +697,6 @@ std::vector<GameObject> spawnBunnys()
         newBunny.position = posBunny;
         arrayOfBunnys[i] = newBunny;
         newBunny.setControlPoints();
-
     }
 
     return arrayOfBunnys;
@@ -813,13 +795,15 @@ glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm
     if (movement_state == JUMPING)
     {
 
-        camera_height += jump;
-        if (camera_height > 3.0f)
+        camera_height += timeElapsed * 4.0f;
+        newCameraPos.y = camera_height;
+        if (cubeOnPlaneCollision(newCameraPos))
             movement_state = FALLING;
     }
     else if (movement_state == FALLING)
     {
-        camera_height -= jump;
+        //if colisao com o teto
+        camera_height -= timeElapsed * 4.0f;
         if (camera_height < 1.5f)
             movement_state = ON_GROUND;
     }
@@ -958,6 +942,8 @@ void LoadShadersFromFiles()
     glUseProgram(program_id);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage1"), BUNNY);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage2"), PLANE);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage3"), PLANE);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage4"), PLANE);
     glUseProgram(0);
 }
 
@@ -1557,14 +1543,13 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
     // Personagem pula verticalmente
     if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
     {
-        movement_state = 1;
+        movement_state = JUMPING;
     }
 
     // Personagem anda mais rapido
     if (key == GLFW_KEY_LEFT_SHIFT && action == GLFW_PRESS)
     {
         shift_Key_Pressed = true;
-        std::cout << "Shift pressed" << std::endl;
     }
     if (key == GLFW_KEY_LEFT_SHIFT && action == GLFW_RELEASE)
     {
@@ -1598,7 +1583,7 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
 
     if (isOpenMenu && key == GLFW_KEY_ENTER && action == GLFW_PRESS)
     {
-        shaderFragmentToLoad = "../../src/shader_fragment.glsl";
+        shaderFragmentToLoad = SHADER_FRAGMENT;
         isOpenMenu = false;
         LoadShadersFromFiles();
         fprintf(stdout, "Shaders recarregados!\n");
@@ -1681,23 +1666,25 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
     {
         if (bunnysLeft < 1)
         {
-            TextRendering_PrintString(window, bufferBunnysWin, -0.45 + lineheight, 15*lineheight, 2.5f);
-            TextRendering_PrintString(window, bufferBunnysWinTime, -0.68 + lineheight, 13*lineheight, 1.5f);
-            TextRendering_PrintString(window, bufferBunnysReplay, -0.45 + lineheight, 11*lineheight, 1.5f);
-        } else {
-            TextRendering_PrintString(window, bufferBunnysPlay, -0.75 + lineheight, 17*lineheight, 1.5f);
-            TextRendering_PrintString(window, bufferBunnys, -0.45 + lineheight, 14*lineheight, 2.0f);
-            TextRendering_PrintString(window, bufferBunnysInstructions1, -1.05 + lineheight, 10*lineheight, 1.0f);
-            TextRendering_PrintString(window, bufferBunnysInstructions2, -1.05 + lineheight, 9*lineheight, 1.0f);
-            TextRendering_PrintString(window, bufferBunnysInstructions3, -1.05 + lineheight, 8*lineheight, 1.0f);
+            TextRendering_PrintString(window, bufferBunnysWin, -0.45 + lineheight, 15 * lineheight, 2.5f);
+            TextRendering_PrintString(window, bufferBunnysWinTime, -0.68 + lineheight, 13 * lineheight, 1.5f);
+            TextRendering_PrintString(window, bufferBunnysReplay, -0.45 + lineheight, 11 * lineheight, 1.5f);
         }
-
-    } else {
-        TextRendering_PrintString(window, bufferBunnysTitle, -0.55 + lineheight, 16*lineheight, 2.8f);
-        TextRendering_PrintString(window, bufferBunnysInstruction0, -0.90 + lineheight, -14*lineheight, 1.5f);
-        TextRendering_PrintString(window, bufferBunnysStart, -0.45 + lineheight, -16*lineheight, 1.5f);
+        else
+        {
+            TextRendering_PrintString(window, bufferBunnysPlay, -0.75 + lineheight, 17 * lineheight, 1.5f);
+            TextRendering_PrintString(window, bufferBunnys, -0.45 + lineheight, 14 * lineheight, 2.0f);
+            TextRendering_PrintString(window, bufferBunnysInstructions1, -1.05 + lineheight, 10 * lineheight, 1.0f);
+            TextRendering_PrintString(window, bufferBunnysInstructions2, -1.05 + lineheight, 9 * lineheight, 1.0f);
+            TextRendering_PrintString(window, bufferBunnysInstructions3, -1.05 + lineheight, 8 * lineheight, 1.0f);
+        }
     }
-
+    else
+    {
+        TextRendering_PrintString(window, bufferBunnysTitle, -0.55 + lineheight, 16 * lineheight, 2.8f);
+        TextRendering_PrintString(window, bufferBunnysInstruction0, -0.90 + lineheight, -14 * lineheight, 1.5f);
+        TextRendering_PrintString(window, bufferBunnysStart, -0.45 + lineheight, -16 * lineheight, 1.5f);
+    }
 }
 
 void DrawScene()
@@ -1707,6 +1694,8 @@ void DrawScene()
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, PLANE);
     DrawVirtualObject("plane");
+
+    RenderSun();
 }
 
 // Função para debugging: imprime no terminal todas informações de um modelo
@@ -1901,7 +1890,6 @@ static int cosAngle(glm::vec4 v1, glm::vec4 v2)
     return dot(normalize(v1), normalize(v2));
 }
 
-
 GLuint BuildTriangles()
 {
     const int numberOfVertices = 17;
@@ -1914,31 +1902,30 @@ GLuint BuildTriangles()
     GLfloat verticesZ[numberOfVertices];
     GLfloat verticesW[numberOfVertices];
 
-
     verticesX[0] = 0.0f;
     verticesY[0] = 1.0f;
     verticesZ[0] = 0.0f;
     verticesW[0] = 1.0f;
 
-    for( int i = 1; i < numberOfVertices; i++) {
+    for (int i = 1; i < numberOfVertices; i++)
+    {
 
-        verticesX[i] = ( radius * cos( i *  twicePi / 15 ) );
-        verticesY[i] = ( radius * sin( i * twicePi / 15 ) );
+        verticesX[i] = (radius * cos(i * twicePi / 15));
+        verticesY[i] = (radius * sin(i * twicePi / 15));
         verticesZ[i] = 0.0f;
         verticesW[i] = 1.0f;
     }
 
+    GLfloat NDC_coefficients[(numberOfVertices)*4];
 
-    GLfloat NDC_coefficients[( numberOfVertices ) * 4];
-
-    for ( int i = 0; i < numberOfVertices; i++ )
+    for (int i = 0; i < numberOfVertices; i++)
     {
-        NDC_coefficients[i * 4] = verticesX[i] ;
-        NDC_coefficients[( i * 4 ) + 1] = verticesY[i];
-        NDC_coefficients[( i * 4 ) + 2] = verticesZ[i] ;
-        NDC_coefficients[( i * 4 ) + 3] = verticesW[i] ;
+        NDC_coefficients[i * 4] = verticesX[i];
+        NDC_coefficients[(i * 4) + 1] = verticesY[i];
+        NDC_coefficients[(i * 4) + 2] = verticesZ[i];
+        NDC_coefficients[(i * 4) + 3] = verticesW[i];
 
-        printf("[%.2f] [%.2f] [%.2f] [%.2f]\n\n", verticesX[i], verticesY[i], verticesZ[i], verticesW[i] );
+        printf("[%.2f] [%.2f] [%.2f] [%.2f]\n\n", verticesX[i], verticesY[i], verticesZ[i], verticesW[i]);
     }
 
     GLuint VBO_NDC_coefficients_id;
@@ -1951,14 +1938,14 @@ GLuint BuildTriangles()
     glBufferData(GL_ARRAY_BUFFER, sizeof(NDC_coefficients), NULL, GL_STATIC_DRAW);
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(NDC_coefficients), NDC_coefficients);
 
-    GLuint location = 0; // "(location = 0)" em "shader_vertex.glsl"
-    GLint  number_of_dimensions = 4; // vec4 em "shader_vertex.glsl"
+    GLuint location = 0;            // "(location = 0)" em "shader_vertex.glsl"
+    GLint number_of_dimensions = 4; // vec4 em "shader_vertex.glsl"
     glVertexAttribPointer(location, number_of_dimensions, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(location);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     GLfloat color_coefficients[] = {
-    //  R     G     B     A
+        //  R     G     B     A
         1.0f, 0.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f, 1.0f,
         0.0f, 0.0f, 1.0f, 1.0f,
@@ -1983,15 +1970,13 @@ GLuint BuildTriangles()
     glBindBuffer(GL_ARRAY_BUFFER, VBO_color_coefficients_id);
     glBufferData(GL_ARRAY_BUFFER, sizeof(color_coefficients), NULL, GL_STATIC_DRAW);
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(color_coefficients), color_coefficients);
-    location = 1; // "(location = 1)" em "shader_vertex.glsl"
+    location = 1;             // "(location = 1)" em "shader_vertex.glsl"
     number_of_dimensions = 4; // vec4 em "shader_vertex.glsl"
     glVertexAttribPointer(location, number_of_dimensions, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(location);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-
-    GLubyte indices[] = { 0,1,2, 0,2,3, 0,3,4, 0,4,5, 0,5,6 ,0,6,7, 0,7,8, 0,8,9 ,0,9,10, 0,10,11, 0,11,12, 0,12,13 ,0,13,14 ,0,14,15 ,0,15,16, 0,16,17 }; // GLubyte: valores entre 0 e 255 (8 bits sem sinal).
-
+    GLubyte indices[] = {0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5, 0, 5, 6, 0, 6, 7, 0, 7, 8, 0, 8, 9, 0, 9, 10, 0, 10, 11, 0, 11, 12, 0, 12, 13, 0, 13, 14, 0, 14, 15, 0, 15, 16, 0, 16, 17}; // GLubyte: valores entre 0 e 255 (8 bits sem sinal).
 
     GLuint indices_id;
     glGenBuffers(1, &indices_id);
