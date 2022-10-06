@@ -237,7 +237,7 @@ float beginTime;
 float timeNow;
 float timeElapsed;
 float playingTime = 0;
-
+std::vector<GameObject> generateBunnysOnTheMap();
 std::vector<GameObject> arrayOfBunnys = generateBunnysOnTheMap();
 
 bool isOpenMenu = true;
@@ -253,7 +253,7 @@ float initial_time = 0.0f;
 
 //Declaracao de funcoes
 glm::vec4 MoveCow(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>);
-std::vector<GameObject> generateBunnysOnTheMap();
+
 void RenderPlane();
 void RenderSun();
 void GameMenu();
@@ -567,7 +567,7 @@ int main(int argc, char *argv[])
     //
     LoadShadersFromFiles();
     // Carregamos duas imagens para serem utilizadas como textura
-    LoadTextureImage("../../data/grass.jpg"); // TextureImage0
+    LoadTextureImage("../../data/dirt.jpg"); // TextureImage0
     // Textura do Personagem
     LoadTextureImage("../../data/fur.jpg");     // TextureImage1
     LoadTextureImage("../../data/cow.jpg");     // TextureImage2
@@ -653,7 +653,7 @@ std::vector<GameObject> generateBunnysOnTheMap()
 
     std::random_device seeder;
     std::mt19937 engine(seeder());
-    
+
     std::uniform_int_distribution<int> xPos(-max_bunny_pos, max_bunny_pos);
     std::uniform_int_distribution<int> zPos(-max_bunny_pos, max_bunny_pos);
 
