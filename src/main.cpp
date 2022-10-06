@@ -157,7 +157,7 @@ void CursorPosCallback(GLFWwindow *window, double xpos, double ypos);
 
 // My Functions
 void RenderPlane();
-glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>);
+glm::vec4 MoveCow(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>);
 std::vector<GameObject> spawnBunnys();
 
 // Definimos uma estrutura que armazenará dados necessários para renderizar
@@ -234,8 +234,9 @@ GLint object_id_uniform;
 GLint bbox_min_uniform;
 GLint bbox_max_uniform;
 
+
+//Variaveis iniciais da camera
 glm::vec4 firstCameraPos = glm::vec4(1.0f, 1.0f, -4.0f, 1.0f);
-glm::vec4 ThirdCameraPos = glm::vec4(1.0f, 3.0f, -4.0f, 1.0f);
 glm::vec4 camera_lookat_l = glm::vec4(1.0f, 1.0f, -4.0f, 1.0f);
 glm::vec4 cameraPos = firstCameraPos;
 
@@ -250,10 +251,6 @@ float beginTime;
 float timeNow;
 float timeElapsed;
 float playingTime = 0;
-
-// random array
-int randomArr[NUMBER_OF_BUNNYS];
-int newRandomArr[NUMBER_OF_BUNNYS - 1];
 
 std::vector<GameObject> arrayOfBunnys = spawnBunnys();
 
@@ -271,10 +268,11 @@ void RenderSun()
 {
 
     glm::mat4 model = Matrix_Identity();
-    model = Matrix_Translate(30.0f, 10.0f, 0.0f);
+    model = Matrix_Translate(40.0f, 10.0f, 0.0f) * Matrix_Scale(2.0f, 2.0f, 2.0f);
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, SUN);
     DrawVirtualObject("sphere");
+
 }
 
 void GameMenu()
@@ -392,21 +390,16 @@ int RunGame(int remainingBunnys)
 
     cameraTarget = glm::vec4(x, y, z, 0.0f);
     glm::vec4 cameraOnEyesHeight = glm::vec4(x, 0.0f, z, 0.0f);
-    glm::vec4 genericUp = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-    glm::vec4 cameraRight = crossproduct(genericUp, cameraTarget);
+    glm::vec4 vectorUp = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+    glm::vec4 cameraRight = crossproduct(vectorUp, cameraTarget);
     glm::vec4 cameraUp = crossproduct(cameraTarget, cameraRight);
 
     // Setting the cameraView based on the user choice
-    if (g_UseFirstPersonView)
-    {
-        cameraPos.y = camera_height;
-        cameraPos = GetNewCameraPos(cameraPos, cameraOnEyesHeight, cameraRight, arrayOfBunnys);
-    }
-    else
-    {
-        cameraPos.y = 4.0;
-        cameraPos = GetNewCameraPos(cameraPos, cameraOnEyesHeight, cameraRight, arrayOfBunnys);
-    }
+
+    cameraPos.y = camera_height;
+    cameraPos = MoveCow(cameraPos, cameraOnEyesHeight, cameraRight, arrayOfBunnys);
+
+
 
     // Computamos a matriz "View" utilizando os parâmetros da câmera para
     // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
@@ -417,7 +410,7 @@ int RunGame(int remainingBunnys)
 
     // Note que, no sistema de coordenadas da câmera, os planos near e far
     // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
-    float nearplane = -0.1f;  // Posição do "near plane"
+    float nearplane = -0.01f;  // Posição do "near plane"
     float farplane = -400.0f; // Posição do "far plane"
 
     if (g_UsePerspectiveProjection)
@@ -619,12 +612,6 @@ int main(int argc, char *argv[])
     int remainingBunnys = 1;
     float freezeTime = 0.0f;
 
-    // Vetor random
-    for (int i = 0; i < NUMBER_OF_BUNNYS; i++)
-    {
-        randomArr[i] = (rand() % 10);
-    }
-
     // Ficamos em loop, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
     {
@@ -638,10 +625,8 @@ int main(int argc, char *argv[])
         else
         {
             remainingBunnys = RunGame(remainingBunnys);
-            
             if(remainingBunnys == 0)
                 isEndGame = true;
-
 
         }
 
@@ -651,15 +636,12 @@ int main(int argc, char *argv[])
         glfwPollEvents();
     }
 
-    // Finalizamos o uso dos recursos do sistema operacional
     glfwTerminate();
 
     return 0;
 }
 
-// Coloca coelhos aleatórias pelo mapa.
-// As coelhos são colocadas sempre dentro dos limites do mapa.
-// Além disso são feitos teste de colisão, para não colocar duas coelhos no mesmo lugar
+//Cria coelhos aleatórios dentro do mapa de jogo.
 std::vector<GameObject> spawnBunnys()
 {
     float posX;
@@ -691,8 +673,35 @@ std::vector<GameObject> spawnBunnys()
     return arrayOfBunnys;
 }
 
+bool checkIfNextPositionIsValid(float cameraPosOnThatCoord) {
+    return cameraPosOnThatCoord < -PLANE_SIZE_X + 1 || cameraPosOnThatCoord > PLANE_SIZE_Z - 1;
+}
+
+glm::vec4 getNewPosition(glm::vec4 cameraPos, glm::vec4 newPos) {
+
+    glm::vec4 auxCameraPos = cameraPos;
+    float newX;
+    float newZ;
+
+     if (checkIfNextPositionIsValid(newPos.x))
+            newX = auxCameraPos.x;
+        else
+            newX = newPos.x;
+
+        if (checkIfNextPositionIsValid(newPos.z))
+            newZ = auxCameraPos.z;
+        else
+            newZ = newPos.z;
+
+        newPos.x = newX;
+        newPos.z = newZ;
+        auxCameraPos = newPos;
+
+    return newPos;
+}
+
 // Pega a próxima posição do jogador, fazendo testes de colisão com a parede.
-glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>)
+glm::vec4 MoveCow(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>)
 {
     glm::vec4 newCameraPos = cameraPos;
     glm::vec4 auxCameraPos = cameraPos;
@@ -702,78 +711,30 @@ glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm
 
     if (w_Key_Pressed)
     {
-
         if (shift_Key_Pressed)
             newCameraPos = newCameraPos + (cameraOnEyesHeight * (timeElapsed * 2.5f));
         else
             newCameraPos = newCameraPos + (cameraOnEyesHeight * timeElapsed);
 
-        if (newCameraPos.x < -PLANE_SIZE_X + 1 || newCameraPos.x > PLANE_SIZE_Z - 1)
-            newX = auxCameraPos.x;
-        else
-            newX = newCameraPos.x;
-
-        if (newCameraPos.z < -PLANE_SIZE_X + 1 || newCameraPos.z > PLANE_SIZE_Z - 1)
-            newZ = auxCameraPos.z;
-        else
-            newZ = newCameraPos.z;
-
-        newCameraPos.x = newX;
-        newCameraPos.z = newZ;
-        auxCameraPos = newCameraPos;
+        newCameraPos = getNewPosition(cameraPos, newCameraPos);
     }
 
     if (s_Key_Pressed)
     {
         newCameraPos = newCameraPos - (cameraOnEyesHeight * timeElapsed);
-        if (newCameraPos.x < -PLANE_SIZE_X + 1 || newCameraPos.x > PLANE_SIZE_Z - 1)
-            newX = auxCameraPos.x;
-        else
-            newX = newCameraPos.x;
-
-        if (newCameraPos.z < -PLANE_SIZE_X + 1 || newCameraPos.z > PLANE_SIZE_Z - 1)
-            newZ = auxCameraPos.z;
-        else
-            newZ = newCameraPos.z;
-
-        newCameraPos.x = newX;
-        newCameraPos.z = newZ;
-        auxCameraPos = newCameraPos;
+        newCameraPos = getNewPosition(cameraPos, newCameraPos);
     }
 
     if (d_Key_Pressed)
     {
         newCameraPos = newCameraPos - (cameraRight * timeElapsed);
-        if (newCameraPos.x < -PLANE_SIZE_X + 1 || newCameraPos.x > PLANE_SIZE_Z - 1)
-            newX = auxCameraPos.x;
-        else
-            newX = newCameraPos.x;
-
-        if (newCameraPos.z < -PLANE_SIZE_X + 1 || newCameraPos.z > PLANE_SIZE_Z - 1)
-            newZ = auxCameraPos.z;
-        else
-            newZ = newCameraPos.z;
-
-        newCameraPos.x = newX;
-        newCameraPos.z = newZ;
-        auxCameraPos = newCameraPos;
+        newCameraPos = getNewPosition(cameraPos, newCameraPos);
     }
 
     if (a_Key_Pressed)
     {
         newCameraPos = newCameraPos + (cameraRight * timeElapsed);
-        if (newCameraPos.x < -PLANE_SIZE_X + 1 || newCameraPos.x > PLANE_SIZE_Z - 1)
-            newX = auxCameraPos.x;
-        else
-            newX = newCameraPos.x;
-
-        if (newCameraPos.z < -PLANE_SIZE_X + 1 || newCameraPos.z > PLANE_SIZE_Z - 1)
-            newZ = auxCameraPos.z;
-        else
-            newZ = newCameraPos.z;
-
-        newCameraPos.x = newX;
-        newCameraPos.z = newZ;
+        newCameraPos = getNewPosition(cameraPos, newCameraPos);
     }
 
     // Personagem realiza um salto vertical

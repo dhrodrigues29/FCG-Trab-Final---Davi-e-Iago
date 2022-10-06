@@ -53,8 +53,7 @@ void main()
 {
     // Obtemos a posição do sol utilizando a inversa da matriz que define o
     // sistema de coordenadas do sol.
-    vec4 origin = vec4(0.0, 0.0, 0.0, 1.0);
-    vec4 sun_position = vec4(30.0, 10.0, 0.0, 1.0);
+    vec4 sun_position = vec4(40.0, 10.0, 0.0, 1.0);
 
     // O fragmento atual é coberto por um ponto que percente à superfície de um
     // dos objetos virtuais da cena. Este ponto, p, possui uma posição no
@@ -68,7 +67,7 @@ void main()
     vec4 n = normalize(normal);
 
     // Vetor que define o sentido da fonte de luz em relação ao ponto atual.
-    vec4 l = normalize(vec4(2.0,1.0,0.0,1.0));
+    vec4 l = normalize(vec4(10.0, 10.0,0.0,1.0));
 
     // Vetor que define o sentido da luz do sol em relação ao ponto atual.
     vec4 v = normalize(sun_position - p);
@@ -172,7 +171,7 @@ void main()
         color = furTexture * (gouraud_color);
     else 
         if (object_id == PLANE)    
-            color = dirtTexture*(gouraud_color);
+            color = dirtTexture*(lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
     else 
         if (object_id == COW)      
             color = cowTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
