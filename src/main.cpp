@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <ctime>
 
+
 // Headers das bibliotecas OpenGL
 #include <glad/glad.h>  // Criação de contexto OpenGL 3.3
 #include <GLFW/glfw3.h> // Criação de janelas do sistema operacional
@@ -51,7 +52,7 @@
 #include "utils.h"
 #include "matrices.h"
 #include "collisions.cpp"
-#include "sceneObjs.cpp"
+#include "GameObject.cpp"
 
 #include <array>
 #include <random>
@@ -59,6 +60,7 @@
 #define BUNNY 1
 #define PLANE 2
 #define COW 3
+#define SUN 4
 
 #define PI 3.14159265359
 #define NUMBER_OF_BUNNYS 10
@@ -151,13 +153,13 @@ void MouseButtonCallback(GLFWwindow *window, int button, int action, int mods);
 void CursorPosCallback(GLFWwindow *window, double xpos, double ypos);
 
 // My Functions
-void DrawEnviroment();
-glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<SceneObj>);
-std::vector<SceneObj> spawnBunnys();
+void DrawScene();
+glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>);
+std::vector<GameObject> spawnBunnys();
 
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
-struct SceneObject
+struct GameObjectect
 {
     std::string name;              // Nome do objeto
     size_t first_index;            // Índice do primeiro vértice dentro do vetor indices[] definido em BuildTrianglesAndAddToVirtualScene()
@@ -174,7 +176,7 @@ struct SceneObject
 // (map).  Veja dentro da função BuildTrianglesAndAddToVirtualScene() como que são incluídos
 // objetos dentro da variável g_VirtualScene, e veja na função main() como
 // estes são acessados.
-std::map<std::string, SceneObject> g_VirtualScene;
+std::map<std::string, GameObjectect> g_VirtualScene;
 
 // Pilha que guardará as matrizes de modelagem.
 std::stack<glm::mat4> g_MatrixStack;
@@ -246,8 +248,11 @@ float timeNow;
 float timeElapsed;
 float playingTime = 0;
 
-std::vector<SceneObj> arrayOfBunnys = spawnBunnys();
-SceneObj myBunny = SceneObj(0, vec3(0.0f, 0.0f, 0.0f), true);
+// random array
+int randomArr[NUMBER_OF_BUNNYS];
+int newRandomArr[NUMBER_OF_BUNNYS-1];
+
+std::vector<GameObject> arrayOfBunnys = spawnBunnys();
 
 bool isOpenMenu = true;
 std::vector<std::string> cowOptionsPath = {"TextureImage1", "TextureImage2"};
@@ -260,10 +265,20 @@ std::string shaderFragmentToLoad = "../../src/shader_fragment_menu.glsl";
 bool return_to_start = false;
 float initial_time = 0.0f;
 
+void RenderSun() {
+
+    glm::mat4 model = Matrix_Identity();
+    model = Matrix_Translate(30.0f, 10.0f, 0.0f);
+    glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+    glUniform1i(object_id_uniform, SUN);
+    DrawVirtualObject("sphere");
+
+}
+
 void GameMenu()
 {
 
-    glClearColor(0.5f, 1.60f, 2.50f, 0.0f);
+    glClearColor(0.49f, 1.60f, 2.50f, 0.0f);
 
     // "Pintamos" todos os pixels do framebuffer com a cor definida acima,
     // e também resetamos todos os pixels do Z-buffer (depth buffer).
@@ -304,7 +319,7 @@ void GameMenu()
     // Note que, no sistema de coordenadas da câmera, os planos near e far
     // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
     float nearplane = -0.1f;  // Posição do "near plane"
-    float farplane = -400.0f; // Posição do "far plane"
+    float farplane = -399.9f; // Posição do "far plane"
 
     if (g_UsePerspectiveProjection)
     {
@@ -335,11 +350,13 @@ void GameMenu()
     glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
 
     // Desenhamos a vaca em terceira pessoa
-    model = Matrix_Translate(0, 0.2f, 0) * Matrix_Scale(1.0, 2.0, 2.0);
+    model = Matrix_Translate(0, 0.2f, 0) * Matrix_Scale(1.5, 2.0, 2.0);
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, COW);
     DrawVirtualObject("cow");
 }
+
+
 
 int main(int argc, char *argv[])
 {
@@ -373,7 +390,7 @@ int main(int argc, char *argv[])
     // Criamos uma janela do sistema operacional, com 800 colunas e 600 linhas
     // de pixels, e com título "INF01047 ...".
     GLFWwindow *window;
-    window = glfwCreateWindow(800, 600, "Bunny Hunter", NULL, NULL);
+    window = glfwCreateWindow(800, 600, "Bunny Hunter Cow", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -416,13 +433,12 @@ int main(int argc, char *argv[])
     // para renderização. Veja slides 176-196 do documento Aula_03_Rendering_Pipeline_Grafico.pdf.
     //
     LoadShadersFromFiles();
-
     // Carregamos duas imagens para serem utilizadas como textura
-    LoadTextureImage("../../data/dirt.jpg"); // TextureImage0
-
+    LoadTextureImage("../../data/campo2.jpg"); // TextureImage0
     // Textura do Personagem
     LoadTextureImage("../../data/fur.jpg"); // TextureImage1
     LoadTextureImage("../../data/cow.jpg"); // TextureImage2
+
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel cowModel("../../data/cow.obj");
@@ -436,6 +452,11 @@ int main(int argc, char *argv[])
     ObjModel planemodel("../../data/plane.obj");
     ComputeNormals(&planemodel);
     BuildTrianglesAndAddToVirtualScene(&planemodel);
+
+    ObjModel spheremodel("../../data/sphere.obj");
+    ComputeNormals(&spheremodel);
+    BuildTrianglesAndAddToVirtualScene(&spheremodel);
+
 
     if (argc > 1)
     {
@@ -464,6 +485,11 @@ int main(int argc, char *argv[])
     // Desenhamos os modelos dos coelhos
     int remainingBunnys = NUMBER_OF_BUNNYS;
 
+    // Vetor random
+    for (int i = 0; i < NUMBER_OF_BUNNYS; i++)
+    {
+        randomArr[i] = (rand() % 10);
+    }
 
     // Ficamos em loop, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
@@ -490,10 +516,8 @@ int main(int argc, char *argv[])
                 isNight = !isNight;
             }
 
-            if (isNight)
-                glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-            else
-                glClearColor(0.5f, 1.60f, 2.50f, 0.0f);
+
+            glClearColor(0.5f, 1.60f, 2.50f, 0.0f);
 
             // "Pintamos" todos os pixels do framebuffer com a cor definida acima,
             // e também resetamos todos os pixels do Z-buffer (depth buffer).
@@ -572,23 +596,14 @@ int main(int argc, char *argv[])
             glUniformMatrix4fv(view_uniform, 1, GL_FALSE, glm::value_ptr(view));
             glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
 
-            if (g_UseFirstPersonView)
-            {
 
-                // Desenhamos a vaca em primeira pessoa
-                model = Matrix_Translate(cameraPos.x, cameraPos.y - 1.5, cameraPos.z) * Matrix_Rotate_Y(g_CameraTheta - 1.55) * Matrix_Scale(1.0, 2.0, 2.0);
-                glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-                glUniform1i(object_id_uniform, COW);
-                DrawVirtualObject("cow");
-            }
-            else
-            {
-                // Desenhamos a vaca em terceira pessoa
-                model = Matrix_Translate(cameraPos.x + 3, cameraPos.y - 4.0, cameraPos.z + 5) * Matrix_Rotate_Y(g_CameraTheta - 1.55) * Matrix_Scale(1.0, 2.0, 2.0);
-                glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
-                glUniform1i(object_id_uniform, COW);
-                DrawVirtualObject("cow");
-            }
+            // Desenhamos a vaca em primeira pessoa
+            model = Matrix_Translate(cameraPos.x, cameraPos.y - 1.5, cameraPos.z) * Matrix_Rotate_Y(g_CameraTheta - 1.55) * Matrix_Scale(1.0, 2.0, 2.0);
+            glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+            glUniform1i(object_id_uniform, COW);
+            DrawVirtualObject("cow");
+
+
 
             float delta = timeNow - initial_time;
             float t = delta;
@@ -603,11 +618,15 @@ int main(int argc, char *argv[])
 
             }
 
+            if (t > 1.0)
+            {
+                t = 0.0;
+            }
+
             for (int i = 0; i < remainingBunnys; i++)
             {
-
-                arrayOfBunnys[i].position = (1-t)*(1-t)*(1-t)*arrayOfBunnys[i].p0 + 3*(1-t)*(1-t)*t*arrayOfBunnys[i].p1 + 3*(1-t)*t*t*arrayOfBunnys[i].p2 + t*t*t*arrayOfBunnys[i].p3;
-                model = Matrix_Translate(arrayOfBunnys[i].position.x, arrayOfBunnys[i].position.y, arrayOfBunnys[i].position.z) * Matrix_Scale(0.7, 0.7, 0.7) * Matrix_Rotate_Y(0.0) * Matrix_Rotate_Z(0.0);
+                arrayOfBunnys[i].position = (1-t)*(1-t)*arrayOfBunnys[i].p0 + 3*(1-t)*(1-t)*t*arrayOfBunnys[i].p1 + 3*(1-t)*t*t*arrayOfBunnys[i].p2 + t*t*t*arrayOfBunnys[i].p3;
+                model = Matrix_Translate(arrayOfBunnys[i].position.x, arrayOfBunnys[i].position.y, arrayOfBunnys[i].position.z) * Matrix_Scale(0.7, 0.7, 0.7) * Matrix_Rotate_Y(arrayOfBunnys[i].position.x) * Matrix_Rotate_Z(0.0);
                 glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
                 glUniform1i(object_id_uniform, BUNNY);
                 DrawVirtualObject("bunny");
@@ -617,8 +636,7 @@ int main(int argc, char *argv[])
             // Colision cow and bunny
                 for (int i = 0; i < remainingBunnys; i++)
                 {
-                    if (arrayOfBunnys[i].isAlive)
-                    {
+
                         if (cubeOnCubeCollision(cameraPos, arrayOfBunnys[i].position))
                         {
                             arrayOfBunnys.erase(arrayOfBunnys.begin() + i);
@@ -628,14 +646,15 @@ int main(int argc, char *argv[])
                             {
                                 playingTime = (float)glfwGetTime() - beginTime;
                             }
-                        }
                     }
                 }
+
+                RenderSun();
 
         }
 
 
-        DrawEnviroment();
+        DrawScene();
 
         // Imprimimos na tela informação sobre o número de quadros renderizados
         // por segundo (frames per second).
@@ -647,9 +666,9 @@ int main(int argc, char *argv[])
         // chamada abaixo faz a troca dos buffers, mostrando para o usuário
         // tudo que foi renderizado pelas funções acima.
         // Veja o link: Veja o link: https://en.wikipedia.org/w/index.php?title=Multiple_buffering&oldid=793452829#Double_buffering_in_computer_graphics
-        
 
-        
+
+
         glfwSwapBuffers(window);
 
         // Verificamos com o sistema operacional se houve alguma interação do
@@ -662,22 +681,22 @@ int main(int argc, char *argv[])
     // Finalizamos o uso dos recursos do sistema operacional
     glfwTerminate();
 
-    // Fim do programa
+    // sFim do programa
     return 0;
 }
 
 // Coloca coelhos aleatórias pelo mapa.
 // As coelhos são colocadas sempre dentro dos limites do mapa.
 // Além disso são feitos teste de colisão, para não colocar duas coelhos no mesmo lugar
-std::vector<SceneObj> spawnBunnys()
+std::vector<GameObject> spawnBunnys()
 {
     float posX;
     float posZ;
     vec3 posBunny = vec3(0.0f, 0.0f, 0.0f);
-    SceneObj newBunny(0, posBunny);
-    std::vector<SceneObj> arrayOfBunnys(NUMBER_OF_BUNNYS);
-    int plane_size_x = PLANE_SIZE_X - 2;
-    int plane_size_z = PLANE_SIZE_Z - 2;
+    GameObject newBunny(posBunny);
+    std::vector<GameObject> arrayOfBunnys(NUMBER_OF_BUNNYS);
+    int plane_size_x = PLANE_SIZE_X - 4;
+    int plane_size_z = PLANE_SIZE_Z - 4;
 
     std::random_device seeder;
     std::mt19937 engine(seeder());
@@ -688,11 +707,10 @@ std::vector<SceneObj> spawnBunnys()
     for (int i = 0; i < NUMBER_OF_BUNNYS; i++)
     {
 
-        // rand position to put the new cow
+        // rand position to put the new bunny
         posX = genX(engine);
         posZ = genZ(engine);
         posBunny = vec3(posX, -0.3, posZ);
-        newBunny.id = i;
         newBunny.position = posBunny;
         arrayOfBunnys[i] = newBunny;
         newBunny.setControlPoints();
@@ -702,12 +720,12 @@ std::vector<SceneObj> spawnBunnys()
     return arrayOfBunnys;
 }
 
-glm::vec4 NextLookAtCamerPosition(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<SceneObj>)
+glm::vec4 NextLookAtCamerPosition(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>)
 {
 }
 
 // Pega a próxima posição do jogador, fazendo testes de colisão com a parede e com os animais distribuídos pelo mapa.
-glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<SceneObj>)
+glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>)
 {
     glm::vec4 newCameraPos = cameraPos;
     glm::vec4 auxCameraPos = cameraPos;
@@ -859,8 +877,6 @@ void LoadTextureImage(const char *filename)
     stbi_image_free(data);
 
     g_NumLoadedTextures += 1;
-
-    std::cout << g_NumLoadedTextures << std::endl;
 }
 
 // Função que desenha um objeto armazenado em g_VirtualScene. Veja definição
@@ -1107,7 +1123,7 @@ void BuildTrianglesAndAddToVirtualScene(ObjModel *model)
 
         size_t last_index = indices.size() - 1;
 
-        SceneObject theobject;
+        GameObjectect theobject;
         theobject.name = model->shapes[shape].name;
         theobject.first_index = first_index;                  // Primeiro índice
         theobject.num_indices = last_index - first_index + 1; // Número de indices
@@ -1490,12 +1506,6 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
         g_ShowInfoText = !g_ShowInfoText;
     }
 
-    // Se o usuário apertar a tecla F, utilizamos a camera em primeira pessoa.
-    if (key == GLFW_KEY_Q && action == GLFW_PRESS)
-    {
-        g_UseFirstPersonView = !g_UseFirstPersonView;
-    }
-
     // Se o usuário apertar a tecla R, recarregamos os shaders dos arquivos "shader_fragment.glsl" e "shader_vertex.glsl".
     if (key == GLFW_KEY_R && action == GLFW_PRESS)
     {
@@ -1616,6 +1626,15 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
     static char buffer[20] = "?? fps";
     static int numchars = 7;
 
+    // Variaveis para printar as infos do menu
+    static char bufferBunnysTitle[50];
+    static char bufferBunnysInstruction0[50];
+    static char bufferBunnysStart[50];
+
+    snprintf(bufferBunnysTitle, 80, "Bunny Hunter Cow!");
+    snprintf(bufferBunnysInstruction0, 80, "Use the keyboard left and right arrows to choose your cow!");
+    snprintf(bufferBunnysStart, 80, "Press 'Enter' to start!");
+
     // Variaveis para printar os coelhos restantes e tempo corrido
     static char bufferBunnys[50];
     static char bufferBunnysPlay[80];
@@ -1624,10 +1643,10 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
     static char bufferBunnysReplay[80];
 
     snprintf(bufferBunnysWin, 80, "    You Won!!");
-    snprintf(bufferBunnysWinTime, 80, "You catch all the Bunnys in %.0f seconds!", playingTime);
-    snprintf(bufferBunnysReplay, 80, "Press 'ESC' to exit or 'Enter' to play again!");
+    snprintf(bufferBunnysWinTime, 80, "You hunt all the Bunnys in %.0f seconds!", playingTime);
+    snprintf(bufferBunnysReplay, 80, "Press 'ESC' to exit!");
     snprintf(bufferBunnys, 50, "%d Remaining Bunnys", bunnysLeft);
-    snprintf(bufferBunnysPlay, 80, "Catch all the bunnys by walking over them!");
+    snprintf(bufferBunnysPlay, 80, "Hunt all the bunnys by walking over them!");
 
     static char bufferBunnysInstructions1[80];
     static char bufferBunnysInstructions2[80];
@@ -1664,7 +1683,7 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
         {
             TextRendering_PrintString(window, bufferBunnysWin, -0.45 + lineheight, 15*lineheight, 2.5f);
             TextRendering_PrintString(window, bufferBunnysWinTime, -0.68 + lineheight, 13*lineheight, 1.5f);
-            TextRendering_PrintString(window, bufferBunnysReplay, -0.75 + lineheight, 11*lineheight, 1.5f);
+            TextRendering_PrintString(window, bufferBunnysReplay, -0.45 + lineheight, 11*lineheight, 1.5f);
         } else {
             TextRendering_PrintString(window, bufferBunnysPlay, -0.75 + lineheight, 17*lineheight, 1.5f);
             TextRendering_PrintString(window, bufferBunnys, -0.45 + lineheight, 14*lineheight, 2.0f);
@@ -1673,11 +1692,15 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
             TextRendering_PrintString(window, bufferBunnysInstructions3, -1.05 + lineheight, 8*lineheight, 1.0f);
         }
 
+    } else {
+        TextRendering_PrintString(window, bufferBunnysTitle, -0.55 + lineheight, 16*lineheight, 2.8f);
+        TextRendering_PrintString(window, bufferBunnysInstruction0, -0.90 + lineheight, -14*lineheight, 1.5f);
+        TextRendering_PrintString(window, bufferBunnysStart, -0.45 + lineheight, -16*lineheight, 1.5f);
     }
 
 }
 
-void DrawEnviroment()
+void DrawScene()
 {
     glm::mat4 model = Matrix_Identity();
     model = Matrix_Translate(0.0f, -1.0f, 0.0f) * Matrix_Scale(PLANE_SIZE_X, 1.0f, PLANE_SIZE_Z);
@@ -1966,10 +1989,10 @@ GLuint BuildTriangles()
     glEnableVertexAttribArray(location);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    
+
     GLubyte indices[] = { 0,1,2, 0,2,3, 0,3,4, 0,4,5, 0,5,6 ,0,6,7, 0,7,8, 0,8,9 ,0,9,10, 0,10,11, 0,11,12, 0,12,13 ,0,13,14 ,0,14,15 ,0,15,16, 0,16,17 }; // GLubyte: valores entre 0 e 255 (8 bits sem sinal).
 
-    
+
     GLuint indices_id;
     glGenBuffers(1, &indices_id);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices_id);

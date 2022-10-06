@@ -26,6 +26,7 @@ uniform mat4 projection;
 #define BUNNY    1
 #define PLANE    2
 #define COW      3
+#define SUN     4
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -49,10 +50,10 @@ out vec3 color;
 
 void main()
 {
-    // Obtemos a posição da câmera utilizando a inversa da matriz que define o
-    // sistema de coordenadas da câmera.
+    // Obtemos a posição do sol utilizando a inversa da matriz que define o
+    // sistema de coordenadas do sol.
     vec4 origin = vec4(0.0, 0.0, 0.0, 1.0);
-    vec4 camera_position = inverse(view) * origin;
+    vec4 sun_position = vec4(30.0, 10.0, 0.0, 1.0);
 
     // O fragmento atual é coberto por um ponto que percente à superfície de um
     // dos objetos virtuais da cena. Este ponto, p, possui uma posição no
@@ -66,16 +67,16 @@ void main()
     vec4 n = normalize(normal);
 
     // Vetor que define o sentido da fonte de luz em relação ao ponto atual.
-    vec4 l = normalize(vec4(0.2,1.0,0.2,0.0));
+    vec4 l = normalize(vec4(2.0,1.0,0.0,1.0));
 
-    // Vetor que define o sentido da câmera em relação ao ponto atual.
-    vec4 v = normalize(camera_position - p);
+    // Vetor que define o sentido da luz do sol em relação ao ponto atual.
+    vec4 v = normalize(sun_position - p);
 
     // Vetor que define o sentido da reflexão especular ideal.
     vec4 r = -l + 2*n*dot(n,l);
 
-    // Vetor que define blinn-phong.
-    vec4 h = normalize(v + l);
+        // Vetor que define blinn-phong
+    vec4 h = normalize(l+v);
 
     // Coordenadas de textura U e V
     float U = 0.0;
@@ -120,31 +121,32 @@ void main()
         Ka = vec3(0.2,0.2,0.2); 
         q = 10.0;
     }
-    if ( object_id == COW )
-    {
-        // Propriedades espectrais da vaca
-        Kd = vec3(0.8, 0.8, 0.8);
-        Ka = vec3(0.2,0.2,0.2);
-        q = 8.0;
+    else
+        if ( object_id == COW )
+        {
+            // Propriedades espectrais da vaca
+            Kd = vec3(0.8, 0.8, 0.8);
+            Ka = vec3(0.2,0.2,0.2);
+            q = 8.0;
 
-        // Projeção planar
-        float minx = bbox_min.x;
-        float maxx = bbox_max.x;
+            // Projeção planar
+            float minx = bbox_min.x;
+            float maxx = bbox_max.x;
 
-        float miny = bbox_min.y;
-        float maxy = bbox_max.y;
+            float miny = bbox_min.y;
+            float maxy = bbox_max.y;
 
-        float minz = bbox_min.z;
-        float maxz = bbox_max.z;
+            float minz = bbox_min.z;
+            float maxz = bbox_max.z;
 
-        U = (position_model.x - minx) / (maxx - minx);
-        V = (position_model.y - miny) / (maxy - miny);
-    }
+            U = (position_model.x - minx) / (maxx - minx);
+            V = (position_model.y - miny) / (maxy - miny);
+        }
 
    // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
-    vec3 DirtTexture = texture(TextureImage0, vec2(U,V)).rgb;
-    vec3 FurTexture = texture(TextureImage1, vec2(U,V)).rgb;
-    vec3 CowTexture = texture(colocarTexturaAqui, vec2(U,V)).rgb;
+    vec3 dirtTexture = texture(TextureImage0, vec2(U,V)).rgb;
+    vec3 furTexture = texture(TextureImage1, vec2(U,V)).rgb;
+    vec3 cowTexture = texture(colocarTexturaAqui, vec2(U,V)).rgb;
     
     // Espectro da fonte de iluminação
     vec3 I = vec3(1.0,1.0,1.0); 
@@ -160,20 +162,22 @@ void main()
 
     // Termo especular utilizando o modelo de iluminação de Phong
     vec3 phong_specular_term  = Ks * I * pow(max(0, dot(r,v)), q); 
-    
-    // Termo especular utilizando o modelo de iluminação de Blinn Phong
-    vec3 blinn_phong_specular_term  = Ks * I * pow(dot(n, h), q);
 
+        // Termo especular utilizando o modelo de iluminação de Blinn Phong
+    vec3 blinn_phong_specular_term  = Ks * I * pow(dot(n, h), q);
     
     //Atribuição de cores
     if(object_id == BUNNY)    
-        color = FurTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
+        color = furTexture * (gouraud_color);
     else 
         if (object_id == PLANE)    
-        color = DirtTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
+            color = dirtTexture*(gouraud_color);
     else 
         if (object_id == COW)      
-        color = CowTexture*(lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
+            color = cowTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
+    else 
+        if(object_id == SUN)
+            color = vec3(1.0,1.0,0.5);
 
     color = pow(color, vec3(1.0,1.0,1.0)/2.2);
 
