@@ -26,7 +26,7 @@ uniform mat4 projection;
 #define BUNNY    1
 #define PLANE    2
 #define COW      3
-#define SUN     4
+#define SUN      4
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -38,6 +38,7 @@ uniform vec4 bbox_max;
 uniform sampler2D TextureImage0; //BUNNY
 uniform sampler2D TextureImage1; //PLANE
 uniform sampler2D TextureImage2; //COW
+uniform sampler2D TextureImage3; //COW
 
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.

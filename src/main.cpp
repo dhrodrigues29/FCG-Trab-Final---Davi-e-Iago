@@ -60,6 +60,7 @@
 #define PLANE 2
 #define COW 3
 #define SUN 4
+#define WALL 5
 
 #define PI 3.14159265359
 #define NUMBER_OF_BUNNYS 10
@@ -155,7 +156,7 @@ void MouseButtonCallback(GLFWwindow *window, int button, int action, int mods);
 void CursorPosCallback(GLFWwindow *window, double xpos, double ypos);
 
 // My Functions
-void DrawScene();
+void RenderPlane();
 glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>);
 std::vector<GameObject> spawnBunnys();
 
@@ -257,7 +258,7 @@ int newRandomArr[NUMBER_OF_BUNNYS - 1];
 std::vector<GameObject> arrayOfBunnys = spawnBunnys();
 
 bool isOpenMenu = true;
-std::vector<std::string> cowOptionsPath = {"TextureImage1", "TextureImage2"};
+std::vector<std::string> cowOptionsPath = {"TextureImage1", "TextureImage2", "TextureImage3"};
 int cowOptionsIndex = 0;
 std::string chosenCow = cowOptionsPath[cowOptionsIndex];
 std::string shaderFragmentToLoad = SHADER_FRAGMENT_MENU;
@@ -356,6 +357,8 @@ void GameMenu()
     glUniform1i(object_id_uniform, COW);
     DrawVirtualObject("cow");
 }
+
+bool isEndGame = false;
 
 // Essa função roda o jogo e retorna a quantidade de bunnys restante
 int RunGame(int remainingBunnys)
@@ -492,6 +495,7 @@ int RunGame(int remainingBunnys)
             }
         }
     }
+    RenderSun();
 
     return remainingBunnys;
 }
@@ -568,10 +572,11 @@ int main(int argc, char *argv[])
     //
     LoadShadersFromFiles();
     // Carregamos duas imagens para serem utilizadas como textura
-    LoadTextureImage("../../data/campo2.jpg"); // TextureImage0
+    LoadTextureImage("../../data/grass.jpg"); // TextureImage0
     // Textura do Personagem
-    LoadTextureImage("../../data/fur.jpg"); // TextureImage1
-    LoadTextureImage("../../data/cow.jpg"); // TextureImage2
+    LoadTextureImage("../../data/fur.jpg");     // TextureImage1
+    LoadTextureImage("../../data/cow.jpg");     // TextureImage2
+    LoadTextureImage("../../data/dourada.jpg"); // TextureImage3
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel cowModel("../../data/cow.obj");
@@ -612,6 +617,7 @@ int main(int argc, char *argv[])
 
     // Desenhamos os modelos dos coelhos
     int remainingBunnys = 1;
+    float freezeTime = 0.0f;
 
     // Vetor random
     for (int i = 0; i < NUMBER_OF_BUNNYS; i++)
@@ -625,40 +631,23 @@ int main(int argc, char *argv[])
 
         if (isOpenMenu)
         {
+            remainingBunnys = 1;
+            isEndGame = false;
             GameMenu();
         }
         else
         {
             remainingBunnys = RunGame(remainingBunnys);
+            
+            if(remainingBunnys == 0)
+                isEndGame = true;
 
-            if (remainingBunnys == 0)
-            {
 
-                shaderFragmentToLoad = SHADER_FRAGMENT_MENU;
-                LoadShadersFromFiles();
-                isOpenMenu = true;
-                remainingBunnys = NUMBER_OF_BUNNYS;
-            }
         }
 
-        DrawScene();
-
-        // Imprimimos na tela informação sobre o número de quadros renderizados
-        // por segundo (frames per second).
+        RenderPlane();
         TextRendering_ShowFramesPerSecond(window, remainingBunnys);
-
-        // O framebuffer onde OpenGL executa as operações de renderização não
-        // é o mesmo que está sendo mostrado para o usuário, caso contrário
-        // seria possível ver artefatos conhecidos como "screen tearing". A
-        // chamada abaixo faz a troca dos buffers, mostrando para o usuário
-        // tudo que foi renderizado pelas funções acima.
-        // Veja o link: Veja o link: https://en.wikipedia.org/w/index.php?title=Multiple_buffering&oldid=793452829#Double_buffering_in_computer_graphics
         glfwSwapBuffers(window);
-
-        // Verificamos com o sistema operacional se houve alguma interação do
-        // usuário (teclado, mouse, ...). Caso positivo, as funções de callback
-        // definidas anteriormente usando glfwSet*Callback() serão chamadas
-        // pela biblioteca GLFW.
         glfwPollEvents();
     }
 
@@ -702,11 +691,7 @@ std::vector<GameObject> spawnBunnys()
     return arrayOfBunnys;
 }
 
-glm::vec4 NextLookAtCamerPosition(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>)
-{
-}
-
-// Pega a próxima posição do jogador, fazendo testes de colisão com a parede e com os animais distribuídos pelo mapa.
+// Pega a próxima posição do jogador, fazendo testes de colisão com a parede.
 glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>)
 {
     glm::vec4 newCameraPos = cameraPos;
@@ -797,14 +782,15 @@ glm::vec4 GetNewCameraPos(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm
 
         camera_height += timeElapsed * 4.0f;
         newCameraPos.y = camera_height;
-        if (cubeOnPlaneCollision(newCameraPos))
+        if (cubeOnPlaneCollision(newCameraPos, glm::vec3(0.0f, 3.0f, 0.0f)))
             movement_state = FALLING;
     }
     else if (movement_state == FALLING)
     {
-        //if colisao com o teto
+
         camera_height -= timeElapsed * 4.0f;
-        if (camera_height < 1.5f)
+        newCameraPos.y = camera_height;
+        if (cubeOnPlaneCollision(newCameraPos, glm::vec3(0.0f, 1.5f, 0.0f)))
             movement_state = ON_GROUND;
     }
 
@@ -942,8 +928,8 @@ void LoadShadersFromFiles()
     glUseProgram(program_id);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage1"), BUNNY);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage2"), PLANE);
-    glUniform1i(glGetUniformLocation(program_id, "TextureImage3"), PLANE);
-    glUniform1i(glGetUniformLocation(program_id, "TextureImage4"), PLANE);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage3"), COW);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage4"), SUN);
     glUseProgram(0);
 }
 
@@ -1589,6 +1575,15 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mod)
         fprintf(stdout, "Shaders recarregados!\n");
         fflush(stdout);
     }
+
+    if(key == GLFW_KEY_ENTER && action == GLFW_PRESS && isEndGame) {
+        shaderFragmentToLoad = SHADER_FRAGMENT_MENU;
+        isOpenMenu = true;
+        LoadShadersFromFiles();
+        fprintf(stdout, "Shaders recarregados!\n");
+        fflush(stdout);
+    }
+
 }
 
 // Definimos o callback para impressão de erros da GLFW no terminal
@@ -1626,10 +1621,12 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
     static char bufferBunnysWin[80];
     static char bufferBunnysWinTime[80];
     static char bufferBunnysReplay[80];
+    static char bufferBunnysGoToMenu[80];
 
     snprintf(bufferBunnysWin, 80, "    You Won!!");
     snprintf(bufferBunnysWinTime, 80, "You hunt all the Bunnys in %.0f seconds!", playingTime);
     snprintf(bufferBunnysReplay, 80, "Press 'ESC' to exit!");
+    snprintf(bufferBunnysGoToMenu, 80, "Press 'ENTER' to go to menu!");
     snprintf(bufferBunnys, 50, "%d Remaining Bunnys", bunnysLeft);
     snprintf(bufferBunnysPlay, 80, "Hunt all the bunnys by walking over them!");
 
@@ -1669,6 +1666,7 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
             TextRendering_PrintString(window, bufferBunnysWin, -0.45 + lineheight, 15 * lineheight, 2.5f);
             TextRendering_PrintString(window, bufferBunnysWinTime, -0.68 + lineheight, 13 * lineheight, 1.5f);
             TextRendering_PrintString(window, bufferBunnysReplay, -0.45 + lineheight, 11 * lineheight, 1.5f);
+            TextRendering_PrintString(window, bufferBunnysGoToMenu, -0.45 + lineheight, 9 * lineheight, 1.5f);
         }
         else
         {
@@ -1687,15 +1685,13 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow *window, int bunnysLeft)
     }
 }
 
-void DrawScene()
+void RenderPlane()
 {
     glm::mat4 model = Matrix_Identity();
     model = Matrix_Translate(0.0f, -1.0f, 0.0f) * Matrix_Scale(PLANE_SIZE_X, 1.0f, PLANE_SIZE_Z);
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, PLANE);
     DrawVirtualObject("plane");
-
-    RenderSun();
 }
 
 // Função para debugging: imprime no terminal todas informações de um modelo
@@ -1880,111 +1876,4 @@ void PrintObjModelInfo(ObjModel *model)
         }
         printf("\n");
     }
-}
-
-// set makeprg=cd\ ..\ &&\ make\ run\ >/dev/null
-// vim: set spell spelllang=pt_br :
-
-static int cosAngle(glm::vec4 v1, glm::vec4 v2)
-{
-    return dot(normalize(v1), normalize(v2));
-}
-
-GLuint BuildTriangles()
-{
-    const int numberOfVertices = 17;
-
-    GLfloat twicePi = 2.0 * M_PI;
-    GLfloat radius = 0.7;
-
-    GLfloat verticesX[numberOfVertices];
-    GLfloat verticesY[numberOfVertices];
-    GLfloat verticesZ[numberOfVertices];
-    GLfloat verticesW[numberOfVertices];
-
-    verticesX[0] = 0.0f;
-    verticesY[0] = 1.0f;
-    verticesZ[0] = 0.0f;
-    verticesW[0] = 1.0f;
-
-    for (int i = 1; i < numberOfVertices; i++)
-    {
-
-        verticesX[i] = (radius * cos(i * twicePi / 15));
-        verticesY[i] = (radius * sin(i * twicePi / 15));
-        verticesZ[i] = 0.0f;
-        verticesW[i] = 1.0f;
-    }
-
-    GLfloat NDC_coefficients[(numberOfVertices)*4];
-
-    for (int i = 0; i < numberOfVertices; i++)
-    {
-        NDC_coefficients[i * 4] = verticesX[i];
-        NDC_coefficients[(i * 4) + 1] = verticesY[i];
-        NDC_coefficients[(i * 4) + 2] = verticesZ[i];
-        NDC_coefficients[(i * 4) + 3] = verticesW[i];
-
-        printf("[%.2f] [%.2f] [%.2f] [%.2f]\n\n", verticesX[i], verticesY[i], verticesZ[i], verticesW[i]);
-    }
-
-    GLuint VBO_NDC_coefficients_id;
-    glGenBuffers(1, &VBO_NDC_coefficients_id);
-
-    GLuint vertex_array_object_id;
-    glGenVertexArrays(1, &vertex_array_object_id);
-    glBindVertexArray(vertex_array_object_id);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO_NDC_coefficients_id);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(NDC_coefficients), NULL, GL_STATIC_DRAW);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(NDC_coefficients), NDC_coefficients);
-
-    GLuint location = 0;            // "(location = 0)" em "shader_vertex.glsl"
-    GLint number_of_dimensions = 4; // vec4 em "shader_vertex.glsl"
-    glVertexAttribPointer(location, number_of_dimensions, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(location);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    GLfloat color_coefficients[] = {
-        //  R     G     B     A
-        1.0f, 0.0f, 0.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 1.0f, 1.0f
-
-    };
-    GLuint VBO_color_coefficients_id;
-    glGenBuffers(1, &VBO_color_coefficients_id);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO_color_coefficients_id);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(color_coefficients), NULL, GL_STATIC_DRAW);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(color_coefficients), color_coefficients);
-    location = 1;             // "(location = 1)" em "shader_vertex.glsl"
-    number_of_dimensions = 4; // vec4 em "shader_vertex.glsl"
-    glVertexAttribPointer(location, number_of_dimensions, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(location);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    GLubyte indices[] = {0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5, 0, 5, 6, 0, 6, 7, 0, 7, 8, 0, 8, 9, 0, 9, 10, 0, 10, 11, 0, 11, 12, 0, 12, 13, 0, 13, 14, 0, 14, 15, 0, 15, 16, 0, 16, 17}; // GLubyte: valores entre 0 e 255 (8 bits sem sinal).
-
-    GLuint indices_id;
-    glGenBuffers(1, &indices_id);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices_id);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), NULL, GL_STATIC_DRAW);
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(indices), indices);
-
-    glBindVertexArray(0);
-
-    return vertex_array_object_id;
 }
