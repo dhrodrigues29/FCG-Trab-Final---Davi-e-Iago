@@ -1198,7 +1198,6 @@ void LoadShader(const char *filename, GLuint shader_id)
     std::string str2 = "colocarTexturaAqui";
     std::string::size_type pos = 0u;
 
-    std::cout << "chosenCow: " << chosenCow << std::endl;
     while ((pos = str.find(str2, pos)) != std::string::npos)
     {
         str.replace(pos, str2.length(), chosenCow);
