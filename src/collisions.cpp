@@ -44,17 +44,14 @@ bool cubeOnPlaneCollision(glm::vec3 cameraPos, glm::vec3 planePosition) {
 
 }
 
-//Colisão ponto-esfera
-bool pointOnSphereCollision(glm::vec3 cameraPos, glm::vec3 spherePosition) {
+//Colisao Ponto-Plano
+bool pointOnPlaneCollision(glm::vec3 cowHeadPos, glm::vec3 planePosition) {
 
-    glm::vec3 camSize = glm::vec3(0.5f, 0.5f, 0.5f);
-    glm::vec3 sphereSize = glm::vec3(0.5f, 0.5f, 0.5f);
+    glm::vec3 planeSize = glm::vec3(PLANE_SIZE, 0.0f, PLANE_SIZE);
 
-    //Seta a camera no chao para comparar com o coelho
-    cameraPos.y = 0.0f;
-    if(cameraPos.x + camSize.x >= spherePosition.x && spherePosition.x + sphereSize.x >= cameraPos.x &&
-        cameraPos.y + camSize.y >= spherePosition.y && spherePosition.y + sphereSize.y >= cameraPos.y &&
-        cameraPos.z + camSize.z >= spherePosition.z && spherePosition.z + sphereSize.z >= cameraPos.z) {
+    if(fabs(cowHeadPos.x) >= planePosition.x && planePosition.x + planeSize.x >= cowHeadPos.x &&
+        fabs(cowHeadPos.z) >= planePosition.z && planePosition.z + planeSize.z >= cowHeadPos.z &&
+        cowHeadPos.y >= planePosition.y) {
         return true;
     }
 

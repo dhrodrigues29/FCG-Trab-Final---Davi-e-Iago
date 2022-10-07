@@ -38,7 +38,6 @@ uniform sampler2D TextureImage0; //BUNNY
 uniform sampler2D TextureImage1; //PLANE
 uniform sampler2D TextureImage2; //COW
 uniform sampler2D TextureImage3; //GRASS - dirt
-uniform sampler2D TextureImage4; //COW
 
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
@@ -154,13 +153,11 @@ void main()
 
     vec4 object_distance = normalize(position_world - spotlight_position);
 
-    
-
     //Aplicat as cores com spotlight e texturas
     if(dot(object_distance, spotlight_direction) > spotlight_opening)
     {
         if ( object_id == PLANE )    
-            color = planeTexture * (lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
+            color = planeTexture * (lambert_diffuse_term + ambient_term);
         else if ( object_id == COW )      
             color = cowTexture * (lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
     }

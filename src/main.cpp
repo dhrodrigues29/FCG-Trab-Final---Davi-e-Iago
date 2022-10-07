@@ -242,7 +242,7 @@ std::vector<GameObject> arrayOfBunnys;
 
 bool isOpenMenu = true;
 bool isEndGame = false;
-int cowOptionsIndex = 0;
+long long unsigned int cowOptionsIndex = 0;
 std::vector<std::string> cowOptionsPath = {"TextureImage1", "TextureImage2", "TextureImage3"};
 std::string chosenCow = cowOptionsPath[cowOptionsIndex];
 std::string shaderFragmentToLoad = SHADER_FRAGMENT_MENU;
@@ -638,8 +638,7 @@ int main(int argc, char *argv[])
     oldTime = beginTime;
 
     // Desenhamos os modelos dos coelhos
-    int remainingBunnys = 1;
-    float freezeTime = 0.0f;
+    int remainingBunnys;
 
     // Ficamos em loop, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
@@ -729,10 +728,6 @@ glm::vec4 getNewPosition(glm::vec4 cameraPos, glm::vec4 newPos) {
 glm::vec4 MoveCow(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>)
 {
     glm::vec4 newCameraPos = cameraPos;
-    glm::vec4 auxCameraPos = cameraPos;
-
-    float newX;
-    float newZ;
 
     if (w_Key_Pressed)
     {
@@ -768,7 +763,7 @@ glm::vec4 MoveCow(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 c
 
         camera_height += timeElapsed * 4.0f;
         newCameraPos.y = camera_height;
-        if (cubeOnPlaneCollision(newCameraPos, glm::vec3(0.0f, 3.0f, 0.0f)))
+        if (pointOnPlaneCollision(newCameraPos, glm::vec3(0.0f, 3.0f, 0.0f)))
             movement_state = FALLING;
     }
     else if (movement_state == FALLING)

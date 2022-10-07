@@ -179,6 +179,7 @@ void main()
     // Termo especular utilizando o modelo de iluminação de Phong
     vec3 phong_specular_term  = Ks * I * pow(max(0, dot(r,v)), q);
 
+    q = 4;
         // Termo especular utilizando o modelo de iluminação de Blinn Phong
     vec3 blinn_phong_specular_term  = Ks * I * pow(dot(n, h), q);
 
@@ -190,7 +191,7 @@ void main()
             color = dirtTexture*(lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
     else
         if (object_id == COW)
-            color = cowTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
+            color = cowTexture*(lambert_diffuse_term + ambient_term);
     else
         if ( object_id == WALL )
             color = wallTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
