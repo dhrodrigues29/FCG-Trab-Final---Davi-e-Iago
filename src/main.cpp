@@ -238,11 +238,11 @@ float timeNow;
 float timeElapsed;
 float playingTime = 0;
 std::vector<GameObject> generateBunnysOnTheMap();
-std::vector<GameObject> arrayOfBunnys = generateBunnysOnTheMap();
+std::vector<GameObject> arrayOfBunnys;
 
 bool isOpenMenu = true;
 bool isEndGame = false;
-int cowOptionsIndex = 0;
+long long unsigned int cowOptionsIndex = 0;
 std::vector<std::string> cowOptionsPath = {"TextureImage1", "TextureImage2", "TextureImage3"};
 std::string chosenCow = cowOptionsPath[cowOptionsIndex];
 std::string shaderFragmentToLoad = SHADER_FRAGMENT_MENU;
@@ -255,6 +255,7 @@ float initial_time = 0.0f;
 glm::vec4 MoveCow(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>);
 
 void RenderPlane();
+void RenderWalls();
 void RenderSun();
 void GameMenu();
 int RunGame(int remainingBunnys);
@@ -266,6 +267,31 @@ void RenderPlane()
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, PLANE);
     DrawVirtualObject("plane");
+}
+
+void RenderWalls()
+{
+    glm::mat4 model = Matrix_Identity();
+    model = Matrix_Scale(PLANE_SIZE,1.0f,PLANE_SIZE) * Matrix_Rotate_X(PI/2) * Matrix_Translate(0.0f,-0.99f,0.0f);
+    glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+    glUniform1i(object_id_uniform, WALL);
+    DrawVirtualObject("plane");
+
+    model = Matrix_Scale(PLANE_SIZE,1.0f,PLANE_SIZE) * Matrix_Rotate_X(PI/2) * Matrix_Rotate_Z(PI/2) * Matrix_Translate(0.0f,-0.99f,0.0f);
+    glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+    glUniform1i(object_id_uniform, WALL);
+    DrawVirtualObject("plane");
+
+    model = Matrix_Scale(PLANE_SIZE,1.0f,PLANE_SIZE) * Matrix_Rotate_X(PI/2) * Matrix_Rotate_Z(PI) * Matrix_Translate(0.0f,-0.99f,0.0f);
+    glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+    glUniform1i(object_id_uniform, WALL);
+    DrawVirtualObject("plane");
+
+    model = Matrix_Scale(PLANE_SIZE,1.0f,PLANE_SIZE) * Matrix_Rotate_X(PI/2) * Matrix_Rotate_Z((PI*3)/2) * Matrix_Translate(0.0f,-0.99f,0.0f);
+    glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+    glUniform1i(object_id_uniform, WALL);
+    DrawVirtualObject("plane");
+
 }
 
 void RenderSun()
@@ -354,7 +380,7 @@ void GameMenu()
     glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
 
     // Desenhamos a vaca em terceira pessoa
-    model = Matrix_Translate(0, 0.2f, 0) * Matrix_Scale(1.5, 2.0, 2.0);
+    model = Matrix_Translate(0, 0.2f, 0) * Matrix_Scale(2.0, 2.0, 2.0);
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, COW);
     DrawVirtualObject("cow");
@@ -567,11 +593,12 @@ int main(int argc, char *argv[])
     //
     LoadShadersFromFiles();
     // Carregamos duas imagens para serem utilizadas como textura
-    LoadTextureImage("../../data/dirt.jpg"); // TextureImage0
+    LoadTextureImage("../../data/grass.jpg"); // TextureImage0
     // Textura do Personagem
     LoadTextureImage("../../data/fur.jpg");     // TextureImage1
     LoadTextureImage("../../data/cow.jpg");     // TextureImage2
     LoadTextureImage("../../data/dourada.jpg"); // TextureImage3
+    LoadTextureImage("../../data/wall.jpg"); // TextureImage4
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel cowModel("../../data/cow.obj");
@@ -611,8 +638,7 @@ int main(int argc, char *argv[])
     oldTime = beginTime;
 
     // Desenhamos os modelos dos coelhos
-    int remainingBunnys = 1;
-    float freezeTime = 0.0f;
+    int remainingBunnys;
 
     // Ficamos em loop, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
@@ -620,9 +646,10 @@ int main(int argc, char *argv[])
 
         if (isOpenMenu)
         {
-            remainingBunnys = 1;
             isEndGame = false;
             GameMenu();
+            arrayOfBunnys = generateBunnysOnTheMap();
+            remainingBunnys = arrayOfBunnys.size();
         }
         else
         {
@@ -632,6 +659,7 @@ int main(int argc, char *argv[])
 
         }
 
+        RenderWalls();
         RenderPlane();
         TextRendering_ShowFramesPerSecond(window, remainingBunnys);
         glfwSwapBuffers(window);
@@ -700,10 +728,6 @@ glm::vec4 getNewPosition(glm::vec4 cameraPos, glm::vec4 newPos) {
 glm::vec4 MoveCow(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>)
 {
     glm::vec4 newCameraPos = cameraPos;
-    glm::vec4 auxCameraPos = cameraPos;
-
-    float newX;
-    float newZ;
 
     if (w_Key_Pressed)
     {
@@ -739,7 +763,7 @@ glm::vec4 MoveCow(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 c
 
         camera_height += timeElapsed * 4.0f;
         newCameraPos.y = camera_height;
-        if (cubeOnPlaneCollision(newCameraPos, glm::vec3(0.0f, 3.0f, 0.0f)))
+        if (pointOnPlaneCollision(newCameraPos, glm::vec3(0.0f, 3.0f, 0.0f)))
             movement_state = FALLING;
     }
     else if (movement_state == FALLING)
@@ -887,6 +911,7 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(program_id, "TextureImage2"), PLANE);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage3"), COW);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage4"), SUN);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage5"), WALL);
     glUseProgram(0);
 }
 

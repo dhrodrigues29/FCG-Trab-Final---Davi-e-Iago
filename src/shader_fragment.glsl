@@ -27,6 +27,7 @@ uniform mat4 projection;
 #define PLANE    2
 #define COW      3
 #define SUN      4
+#define WALL     5
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -39,6 +40,7 @@ uniform sampler2D TextureImage0; //BUNNY
 uniform sampler2D TextureImage1; //PLANE
 uniform sampler2D TextureImage2; //COW
 uniform sampler2D TextureImage3; //COW
+uniform sampler2D TextureImage4; //WALL
 
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
@@ -109,18 +111,19 @@ void main()
         V = (phi + M_PI_2) / M_PI;
         U = (theta + M_PI) / (2 * M_PI);
     }
-    else if ( object_id == PLANE )
-    {
-        // Coordenadas de textura do plano
-        U = texcoords.x*8;
-        V = texcoords.y*8;
+    else
+        if ( object_id == PLANE )
+        {
+            // Coordenadas de textura do plano
+            U = texcoords.x*8;
+            V = texcoords.y*8;
 
-       // Propriedades espectrais do plano
-        Kd = vec3(0.2, 0.2, 0.2);
-        Ks = vec3(0.3, 0.3, 0.3);
-        Ka = vec3(0.2,0.2,0.2); 
-        q = 10.0;
-    }
+        // Propriedades espectrais do plano
+            Kd = vec3(0.2, 0.2, 0.2);
+            Ks = vec3(0.3, 0.3, 0.3);
+            Ka = vec3(0.2,0.2,0.2);
+            q = 10.0;
+        }
     else
         if ( object_id == COW )
         {
@@ -142,17 +145,30 @@ void main()
             U = (position_model.x - minx) / (maxx - minx);
             V = (position_model.y - miny) / (maxy - miny);
         }
+    else
+        if ( object_id == WALL)
+        {
+            // Coordenadas de textura das paredes
+            U = texcoords.x*(1/2);
+            V = texcoords.y;
+
+            // Propriedades espectrais das paredes
+            Ka = vec3(0.4,0.4,0.4);
+            q = 20.0;
+        }
 
    // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
     vec3 dirtTexture = texture(TextureImage0, vec2(U,V)).rgb;
     vec3 furTexture = texture(TextureImage1, vec2(U,V)).rgb;
     vec3 cowTexture = texture(colocarTexturaAqui, vec2(U,V)).rgb;
-    
+    vec3 wallTexture = texture(TextureImage4, vec2(U,V)).rgb;
+
+
     // Espectro da fonte de iluminação
-    vec3 I = vec3(1.0,1.0,1.0); 
+    vec3 I = vec3(1.0,1.0,1.0);
 
     // Espectro da luz ambiente
-    vec3 Ia = vec3(0.2, 0.2, 0.2); 
+    vec3 Ia = vec3(0.2, 0.2, 0.2);
 
     // Termo difuso utilizando a lei dos cossenos de Lambert
     vec3 lambert_diffuse_term = Kd * I * max(0, dot(n,l)); //Termo difuso de Lambert
@@ -161,21 +177,25 @@ void main()
     vec3 ambient_term =  Ka * Ia;// Termo ambiente
 
     // Termo especular utilizando o modelo de iluminação de Phong
-    vec3 phong_specular_term  = Ks * I * pow(max(0, dot(r,v)), q); 
+    vec3 phong_specular_term  = Ks * I * pow(max(0, dot(r,v)), q);
 
+    q = 1;
         // Termo especular utilizando o modelo de iluminação de Blinn Phong
     vec3 blinn_phong_specular_term  = Ks * I * pow(dot(n, h), q);
-    
+
     //Atribuição de cores
-    if(object_id == BUNNY)    
+    if(object_id == BUNNY)
         color = furTexture * (gouraud_color);
-    else 
-        if (object_id == PLANE)    
+    else
+        if (object_id == PLANE)
             color = dirtTexture*(lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
-    else 
-        if (object_id == COW)      
-            color = cowTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
-    else 
+    else
+        if (object_id == COW)
+            color = cowTexture*(lambert_diffuse_term + ambient_term);
+    else
+        if ( object_id == WALL )
+            color = wallTexture*(lambert_diffuse_term + ambient_term + phong_specular_term);
+    else
         if(object_id == SUN)
             color = vec3(1.0,1.0,0.5);
 
