@@ -238,7 +238,7 @@ float timeNow;
 float timeElapsed;
 float playingTime = 0;
 std::vector<GameObject> generateBunnysOnTheMap();
-std::vector<GameObject> arrayOfBunnys = generateBunnysOnTheMap();
+std::vector<GameObject> arrayOfBunnys;
 
 bool isOpenMenu = true;
 bool isEndGame = false;
@@ -594,11 +594,11 @@ int main(int argc, char *argv[])
     LoadShadersFromFiles();
     // Carregamos duas imagens para serem utilizadas como textura
     LoadTextureImage("../../data/grass.jpg"); // TextureImage0
-    LoadTextureImage("../../data/wall.jpg"); // TextureImage5
     // Textura do Personagem
     LoadTextureImage("../../data/fur.jpg");     // TextureImage1
     LoadTextureImage("../../data/cow.jpg");     // TextureImage2
     LoadTextureImage("../../data/dourada.jpg"); // TextureImage3
+    LoadTextureImage("../../data/wall.jpg"); // TextureImage4
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel cowModel("../../data/cow.obj");
@@ -647,9 +647,10 @@ int main(int argc, char *argv[])
 
         if (isOpenMenu)
         {
-            remainingBunnys = 1;
             isEndGame = false;
             GameMenu();
+            arrayOfBunnys = generateBunnysOnTheMap();
+            remainingBunnys = arrayOfBunnys.size();
         }
         else
         {
