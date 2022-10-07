@@ -255,6 +255,7 @@ float initial_time = 0.0f;
 glm::vec4 MoveCow(glm::vec4 cameraPos, glm::vec4 cameraOnEyesHeight, glm::vec4 cameraRight, std::vector<GameObject>);
 
 void RenderPlane();
+void RenderWalls();
 void RenderSun();
 void GameMenu();
 int RunGame(int remainingBunnys);
@@ -266,6 +267,31 @@ void RenderPlane()
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, PLANE);
     DrawVirtualObject("plane");
+}
+
+void RenderWalls()
+{
+    glm::mat4 model = Matrix_Identity();
+    model = Matrix_Scale(PLANE_SIZE,1.0f,PLANE_SIZE) * Matrix_Rotate_X(PI/2) * Matrix_Rotate_X((PI*3)/2) * Matrix_Translate(0.0f,-0.99f,0.0f);
+    glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+    glUniform1i(object_id_uniform, WALL);
+    DrawVirtualObject("plane");
+
+    model = Matrix_Scale(PLANE_SIZE,1.0f,PLANE_SIZE) * Matrix_Rotate_X(PI/2) * Matrix_Rotate_X(PI/2) * Matrix_Translate(0.0f,-0.99f,0.0f);
+    glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+    glUniform1i(object_id_uniform, WALL);
+    DrawVirtualObject("plane");
+
+    model = Matrix_Scale(PLANE_SIZE,1.0f,PLANE_SIZE) * Matrix_Rotate_X(PI/2) * Matrix_Translate(0.0f,-0.99f,0.0f);
+    glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+    glUniform1i(object_id_uniform, WALL);
+    DrawVirtualObject("plane");
+
+    model = Matrix_Scale(PLANE_SIZE,1.0f,PLANE_SIZE) * Matrix_Rotate_X(PI/2) * Matrix_Rotate_X(PI) * Matrix_Translate(0.0f,-0.99f,0.0f);
+    glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+    glUniform1i(object_id_uniform, WALL);
+    DrawVirtualObject("plane");
+
 }
 
 void RenderSun()
@@ -567,7 +593,8 @@ int main(int argc, char *argv[])
     //
     LoadShadersFromFiles();
     // Carregamos duas imagens para serem utilizadas como textura
-    LoadTextureImage("../../data/dirt.jpg"); // TextureImage0
+    LoadTextureImage("../../data/grass.jpg"); // TextureImage0
+    LoadTextureImage("../../data/wall.jpg"); // TextureImage5
     // Textura do Personagem
     LoadTextureImage("../../data/fur.jpg");     // TextureImage1
     LoadTextureImage("../../data/cow.jpg");     // TextureImage2
@@ -887,6 +914,7 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(program_id, "TextureImage2"), PLANE);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage3"), COW);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage4"), SUN);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage5"), WALL);
     glUseProgram(0);
 }
 

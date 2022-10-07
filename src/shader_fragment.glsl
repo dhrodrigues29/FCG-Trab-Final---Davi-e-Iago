@@ -27,6 +27,7 @@ uniform mat4 projection;
 #define PLANE    2
 #define COW      3
 #define SUN      4
+#define WALL     5
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -39,6 +40,7 @@ uniform sampler2D TextureImage0; //BUNNY
 uniform sampler2D TextureImage1; //PLANE
 uniform sampler2D TextureImage2; //COW
 uniform sampler2D TextureImage3; //COW
+uniform sampler2D TextureImage5; //WALL
 
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
@@ -109,6 +111,16 @@ void main()
         V = (phi + M_PI_2) / M_PI;
         U = (theta + M_PI) / (2 * M_PI);
     }
+    else if ( object_id == WALL)
+    {
+        // Coordenadas de textura das paredes
+        U = texcoords.x*16;
+        V = texcoords.y;
+
+       // Propriedades espectrais das paredes
+        Ka = vec3(0.4,0.4,0.4);
+        q = 10.0;
+    }
     else if ( object_id == PLANE )
     {
         // Coordenadas de textura do plano
@@ -147,6 +159,8 @@ void main()
     vec3 dirtTexture = texture(TextureImage0, vec2(U,V)).rgb;
     vec3 furTexture = texture(TextureImage1, vec2(U,V)).rgb;
     vec3 cowTexture = texture(colocarTexturaAqui, vec2(U,V)).rgb;
+    vec3 wallTexture = texture(TextureImage5, vec2(U,V)).rgb;
+
     
     // Espectro da fonte de iluminação
     vec3 I = vec3(1.0,1.0,1.0); 
@@ -169,6 +183,9 @@ void main()
     //Atribuição de cores
     if(object_id == BUNNY)    
         color = furTexture * (gouraud_color);
+    else 
+        if ( object_id == WALL )
+            color = wallTexture*(lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
     else 
         if (object_id == PLANE)    
             color = dirtTexture*(lambert_diffuse_term + ambient_term + blinn_phong_specular_term);
