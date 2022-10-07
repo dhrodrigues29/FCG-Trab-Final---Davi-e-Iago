@@ -26,6 +26,7 @@ uniform mat4 projection;
 #define BUNNY    1
 #define PLANE    2
 #define COW      3
+#define WALL     5
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -38,6 +39,7 @@ uniform sampler2D TextureImage0; //BUNNY
 uniform sampler2D TextureImage1; //PLANE
 uniform sampler2D TextureImage2; //COW
 uniform sampler2D TextureImage3; //GRASS - dirt
+uniform sampler2D TextureImage4; //GRASS - grass
 
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
@@ -130,6 +132,7 @@ void main()
 
     vec3 planeTexture = texture(TextureImage0, vec2(U,V)).rgb;
     vec3 cowTexture = texture(colocarTexturaAqui, vec2(U,V)).rgb;
+    vec3 wallTexture = texture(TextureImage4, vec2(U,V)).rgb;
     
     // Espectro da fonte de iluminação
     vec3 I = vec3(1.0,1.0,1.0); 
@@ -167,6 +170,8 @@ void main()
             color = planeTexture * (ambient_term);
         else if ( object_id == COW )      
             color = cowTexture * (ambient_term);
+        else if ( object_id == WALL )      
+            color = wallTexture * (ambient_term);
     }
 
 

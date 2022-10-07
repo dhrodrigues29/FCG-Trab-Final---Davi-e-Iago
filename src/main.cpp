@@ -380,7 +380,7 @@ void GameMenu()
     glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
 
     // Desenhamos a vaca em terceira pessoa
-    model = Matrix_Translate(0, 0.2f, 0) * Matrix_Scale(1.5, 2.0, 2.0);
+    model = Matrix_Translate(0, 0.2f, 0) * Matrix_Scale(2.0, 2.0, 2.0);
     glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
     glUniform1i(object_id_uniform, COW);
     DrawVirtualObject("cow");

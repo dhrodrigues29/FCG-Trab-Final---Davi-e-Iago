@@ -179,7 +179,7 @@ void main()
     // Termo especular utilizando o modelo de iluminação de Phong
     vec3 phong_specular_term  = Ks * I * pow(max(0, dot(r,v)), q);
 
-    q = 4;
+    q = 1;
         // Termo especular utilizando o modelo de iluminação de Blinn Phong
     vec3 blinn_phong_specular_term  = Ks * I * pow(dot(n, h), q);
 
